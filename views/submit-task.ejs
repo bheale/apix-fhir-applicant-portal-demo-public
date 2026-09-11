@@ -1,0 +1,102 @@
+<div class="page-header">
+  <h1 class="page-title"><i class="ph ph-paper-plane-tilt" style="color:var(--color-primary)"></i> Create New Submission Task</h1>
+  <p class="page-subtitle">Submit a regulatory Task to a FHIR server, optionally attaching documents.</p>
+</div>
+
+<form method="POST" action="/submit-task" enctype="multipart/form-data" class="form-wide">
+
+  <div class="form-section">
+    <h3><i class="ph ph-identification-card"></i> Task Identity</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-4);">
+      <label style="grid-column:1/-1;">
+        Submitter Organization
+        <select name="orgId" required>
+          <% organizations.forEach(org => { %>
+            <option value="<%= org.id %>"><%= org.name %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>
+        FHIR Server URL
+        <input name="fhirUrl" required placeholder="https://your-fhir-server.org/fhir">
+      </label>
+      <label>
+        Task Identifier
+        <input type="text" name="taskIdentifier" required placeholder="SUB-2024-001">
+      </label>
+      <label>
+        Drug Name
+        <input type="text" name="drugName" required placeholder="ExampleDrug 10mg">
+      </label>
+      <label style="grid-column:1/-1;">
+        Description
+        <textarea name="taskDescription" rows="3" placeholder="Brief description of this submission task..."></textarea>
+      </label>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h3><i class="ph ph-text-t"></i> Optional Text Input</h3>
+    <label>
+      Text Input
+      <textarea name="textInput" rows="3" placeholder="Additional text input for this task..."></textarea>
+    </label>
+  </div>
+
+  <div class="form-section">
+    <h3><i class="ph ph-file-pdf"></i> Attach Document <span style="font-weight:400; text-transform:none; font-size:0.8rem; color:var(--color-text-muted); letter-spacing:0;">(optional)</span></h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-4);">
+      <label style="grid-column:1/-1;">
+        File (PDF)
+        <input type="file" name="docFile" accept="application/pdf">
+      </label>
+      <label>
+        CTD Section <span style="font-weight:400">(DocumentReference.type)</span>
+        <select name="docType">
+          <% (ctdSections || []).forEach(sec => { %>
+            <option value="<%= sec.system %>|<%= sec.code %>|<%= sec.display %>">
+              <%= sec.display %>
+            </option>
+          <% }) %>
+        </select>
+      </label>
+      <label>
+        CTD Module <span style="font-weight:400">(DocumentReference.category)</span>
+        <select name="docCategory">
+          <% (ctdModules || []).forEach(mod => { %>
+            <option value="<%= mod.system %>|<%= mod.code %>|<%= mod.display %>">
+              <%= mod.display %>
+            </option>
+          <% }) %>
+        </select>
+      </label>
+      <label>
+        Document Description
+        <input name="docDescription" placeholder="Clinical study report...">
+      </label>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h3><i class="ph ph-buildings"></i> Task Owner (Regulator Organization)</h3>
+    <label>
+      Regulator Organization
+      <% if (regulatorOrgs && regulatorOrgs.length > 0) { %>
+        <select name="ownerOrgRef">
+          <option value="">— none —</option>
+          <% regulatorOrgs.forEach(org => { %>
+            <option value="Organization/<%= org.id %>"><%= org.name %> &nbsp;(Organization/<%= org.id %>)</option>
+          <% }) %>
+        </select>
+      <% } else { %>
+        <input name="ownerOrgRef" placeholder="Organization/id  — configure FHIR session to load list" style="font-family:monospace;">
+        <small style="color:var(--color-text-muted)">Set your FHIR session credentials first to auto-populate this list, or enter a reference manually.</small>
+      <% } %>
+    </label>
+  </div>
+
+  <div>
+    <button type="submit"><i class="ph ph-paper-plane-tilt"></i> Create Submission Task</button>
+  </div>
+
+</form>

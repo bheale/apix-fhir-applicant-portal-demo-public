@@ -1,0 +1,164 @@
+<%- include('partials/_fhir_base', { fhirBase: fhirUrl }) %>
+
+<div class="page-header">
+  <h1 class="page-title"><i class="ph ph-bell-ringing" style="color:var(--color-primary)"></i> Select a Subscription Topic</h1>
+  <p class="page-subtitle">Choose a SubscriptionTopic from the FHIR server and configure your subscription endpoint.</p>
+</div>
+
+<div class="alert alert-info mb-4">
+  <i class="ph ph-info"></i>
+  <div><strong>FHIR Server:</strong> <span class="text-mono"><%= fhirUrl %></span></div>
+</div>
+
+<form method="POST" action="/create-subscription" class="form-wide">
+  <input type="hidden" name="fhirUrl" value="<%= fhirUrl %>">
+  <input type="hidden" name="taskId"  value="<%= taskId %>">
+  <input type="hidden" name="orgId"   value="<%= orgId %>">
+
+  <div class="form-section">
+    <h3><i class="ph ph-list-bullets"></i> Available Subscription Topics</h3>
+    <div class="table-wrapper">
+      <table class="topic-table">
+        <thead>
+          <tr>
+            <th style="width:30px;">Select</th>
+            <th>Title</th>
+            <th>Description</th>
+            <th>Inspect</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% topics.forEach(t => { %>
+            <tr>
+              <td style="text-align:center;">
+                <input type="radio" name="topicUrl" value="<%= t.url %>" required style="width:auto; accent-color:var(--color-primary);">
+              </td>
+              <td>
+                <strong style="font-size:0.875rem;"><%= t.title %></strong><br>
+                <span class="text-mono" style="font-size:0.75rem; color:var(--color-text-muted);"><%= t.url ? t.url.substring(0,50) + '...' : '' %></span>
+              </td>
+              <td style="font-size:0.85rem; color:var(--color-text-muted);"><%= t.description %></td>
+              <td>
+                <button type="button" class="action-btn btn-ghost" onclick="openJsonModal(
+                    <%= JSON.stringify(t) %>,
+                    'SubscriptionTopic/<%= t.id %>',
+                    { fetchUrl: (window.__FHIR_BASE__ || '') + '/SubscriptionTopic/<%= t.id %>',
+                      resourceType: 'SubscriptionTopic' })">
+                  <i class="ph ph-code"></i> View JSON
+                </button>
+                <div id="topic-<%= t.id %>" class="popover" style="display:none;">
+                  <pre><%= JSON.stringify(t, null, 2) %></pre>
+                </div>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h3><i class="ph ph-identification-badge"></i> Task & Organization</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-4);">
+      <label>
+        Select Task Identifier
+        <select name="taskIdentifier" id="taskIdentifierSelect" required>
+          <% taskIdentifiers.forEach(ti => { %>
+            <option value="<%= ti.identifier %>"
+                    data-taskid="<%= ti.taskId %>"
+                    data-fhirserver="<%= ti.fhirServer %>">
+              <%= ti.identifier %> (Task <%= ti.taskId %> @ <%= ti.fhirServer %>)
+            </option>
+          <% }) %>
+        </select>
+      </label>
+      <label>
+        Submitter Organization
+        <select name="managingEntityRef" id="managingEntityRef" required>
+          <% organizations.forEach(org => { %>
+            <option value="Organization/<%= org.id %>">
+              <%= org.name %> — <%= org.identifier %>
+            </option>
+          <% }) %>
+        </select>
+      </label>
+    </div>
+
+    <div style="margin-top:var(--space-3);">
+      <button type="button" id="taskJsonButton" class="btn-ghost action-btn" onclick="loadTaskJson()">
+        <i class="ph ph-code"></i> Show Task JSON
+      </button>
+      <div id="taskJsonWindow" style="display:none; margin-top:var(--space-3);">
+        <div id="taskDebug" style="font-size:0.8rem; color:var(--color-text-muted); margin-bottom:var(--space-2);"></div>
+        <div class="json-viewer-container">
+          <div class="json-viewer-toolbar">
+            <span class="json-viewer-lang">json · Task</span>
+            <button type="button" class="json-viewer-copy" onclick="copyJsonBlock(this)"><i class="ph ph-copy"></i> Copy</button>
+          </div>
+          <div class="json-viewer-body">
+            <pre id="taskJson"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h3><i class="ph ph-link"></i> Subscription Endpoint</h3>
+    <label>
+      Subscription Endpoint URL
+      <input name="endpoint" required placeholder="https://your-app.example.org/notify">
+    </label>
+  </div>
+
+  <div>
+    <button type="submit"><i class="ph ph-bell-ringing"></i> Create Subscription</button>
+  </div>
+</form>
+
+<script>
+async function loadTaskJson() {
+  const win  = document.getElementById('taskJsonWindow');
+  const pre  = document.getElementById('taskJson');
+  const dbg  = document.getElementById('taskDebug');
+  const btn  = document.getElementById('taskJsonButton');
+  const sel  = document.getElementById('taskIdentifierSelect');
+
+  if (!sel || sel.selectedIndex < 0) {
+    dbg.textContent = 'No Task selected';
+    pre.textContent = '';
+    win.style.display = 'block';
+    btn.textContent = 'Hide Task JSON';
+    return;
+  }
+
+  const opt        = sel.options[sel.selectedIndex];
+  const taskId     = opt.getAttribute('data-taskid');
+  const fhirServer = opt.getAttribute('data-fhirserver');
+
+  dbg.textContent = `Selected Task: ${taskId || '(none)'} @ ${fhirServer || '(none)'}`;
+
+  if (win.style.display === 'none') {
+    if (!taskId || !fhirServer) {
+      pre.textContent = 'not found';
+      win.style.display = 'block';
+      return;
+    }
+    try {
+      const url = `${fhirServer.replace(/\/+$/, '')}/Task/${encodeURIComponent(taskId)}`;
+      const res = await fetch('/fhir-proxy?url=' + encodeURIComponent(url), { headers: { 'Accept': 'application/fhir+json' } });
+      const data = res.ok ? await res.json() : null;
+      const str = JSON.stringify(data || { error: 'not found' }, null, 2);
+      pre.innerHTML = highlightJson ? highlightJson(str) : str;
+      if (window.hljs) hljs.highlightElement(pre);
+    } catch (e) {
+      pre.textContent = 'Error: ' + e.message;
+    }
+    win.style.display = 'block';
+    btn.innerHTML = '<i class="ph ph-eye-slash"></i> Hide Task JSON';
+  } else {
+    win.style.display = 'none';
+    btn.innerHTML = '<i class="ph ph-code"></i> Show Task JSON';
+  }
+}
+</script>

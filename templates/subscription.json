@@ -1,0 +1,31 @@
+{
+  "resourceType": "Subscription",
+  "identifier": [
+    {
+      "system": "{{ORG_ID_SYSTEM}}",
+      "value": "{{SUBSCRIPTION_IDENTIFIER}}"
+    }
+  ],
+  "status": "requested",
+  "topic": "{{TOPIC_URL}}",
+  "reason": "Monitor status transitions for a specific Task",
+  "channelType": {
+    "system": "http://terminology.hl7.org/CodeSystem/subscription-channel-type",
+    "code": "rest-hook"
+  },
+  "endpoint": "{{ENDPOINT}}",
+  "heartbeatPeriod": 300,
+  "timeout": 60,
+  "contentType": "application/fhir+json",
+  "content": "full-resource",
+  "filterBy": [
+    {
+      "resourceType": "Task",
+      "filterParameter": "identifier",
+      "value": "{{TASK_IDENTIFIER}}"
+    }
+  ],
+  "managingEntity": {
+    "reference": "{{MANAGING_ENTITY_REF}}"
+  }
+}

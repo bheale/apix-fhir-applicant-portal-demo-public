@@ -1,0 +1,212 @@
+{
+  "resourceType": "Bundle",
+  "type": "transaction",
+  "entry": [
+    {
+      "fullUrl": "{{TASK_UUID}}",
+      "resource": 
+	  {
+  "resourceType": "Task",
+  "meta": {
+    "profile": [
+      "http://hl7.org/fhir/uv/apix/StructureDefinition/apix-task"
+    ]
+  },
+  "text": {
+    "status": "generated",
+    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">Initial Submission: Type IB Variation to extend shelf-life</div>"
+  },
+  "contained": [
+    {
+      "resourceType": "DocumentReference",
+      "id": "docref-cover-letter",
+      "meta": {
+        "profile": [
+          "http://hl7.org/fhir/uv/apix/StructureDefinition/apix-documentreference"
+        ]
+      },
+      "status": "current",
+      "type": {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/uv/apix/CodeSystem/ctd-section",
+            "code": "1.0",
+            "display": "Cover Letter"
+          }
+        ]
+      },
+      "date": "2025-02-15T09:00:00+01:00",
+      "content": [
+        {
+          "attachment": {
+            "contentType": "application/pdf",
+            "data": "VGhpcyBpcyBhIHBsYWNlaG9sZGVyIGRvY3VtZW50IGZvciB2YWxpZGF0aW9uIHB1cnBvc2VzLgo=",
+            "title": "cover-letter.pdf",
+            "creation": "2025-02-15T09:00:00+01:00"
+          }
+        }
+      ]
+    },
+    {
+      "resourceType": "DocumentReference",
+      "id": "docref-application-form",
+      "meta": {
+        "profile": [
+          "http://hl7.org/fhir/uv/apix/StructureDefinition/apix-documentreference"
+        ]
+      },
+      "status": "current",
+      "type": {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/uv/apix/CodeSystem/ctd-section",
+            "code": "1.2",
+            "display": "Administrative Information"
+          }
+        ]
+      },
+      "date": "2025-02-15T09:00:00+01:00",
+      "content": [
+        {
+          "attachment": {
+            "contentType": "application/xml",
+            "data": "VGhpcyBpcyBhIHBsYWNlaG9sZGVyIGRvY3VtZW50IGZvciB2YWxpZGF0aW9uIHB1cnBvc2VzLgo=",
+            "title": "eAF-application-form.xml",
+            "creation": "2025-02-15T09:00:00+01:00"
+          }
+        }
+      ]
+    },
+    {
+      "resourceType": "DocumentReference",
+      "id": "docref-qos-update",
+      "meta": {
+        "profile": [
+          "http://hl7.org/fhir/uv/apix/StructureDefinition/apix-documentreference"
+        ]
+      },
+      "status": "current",
+      "type": {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/uv/apix/CodeSystem/ctd-section",
+            "code": "2.3",
+            "display": "Quality Overall Summary"
+          }
+        ]
+      },
+      "date": "2025-02-15T09:00:00+01:00",
+      "content": [
+        {
+          "attachment": {
+            "contentType": "application/pdf",
+            "data": "VGhpcyBpcyBhIHBsYWNlaG9sZGVyIGRvY3VtZW50IGZvciB2YWxpZGF0aW9uIHB1cnBvc2VzLgo=",
+            "title": "quality-overall-summary.pdf",
+            "creation": "2025-02-15T09:00:00+01:00"
+          }
+        }
+      ]
+    }
+  ],
+  "identifier": [
+    {
+      "type": {
+        "coding": [
+          {
+            "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+            "code": "RI"
+          }
+        ]
+      },
+      "system": "urn:ietf:rfc:3986",
+      "value": "urn:uuid:653e7d2a-8b1c-4d9f-9a2e-1f6c9d8e7b3a"
+    },
+  {
+    "system": "internalToSubmitter",
+    "value": "{{TASK_IDENTIFIER}}"
+  }
+
+  ],
+  "groupIdentifier": {
+    "system": "urn:ietf:rfc:3986",
+    "value": "PROC-2025-12345"
+  },
+  "status": "requested",
+  "intent": "proposal",
+  "code": {
+    "coding": [
+      {
+        "system": "http://hl7.org/fhir/uv/apix/CodeSystem/apix-task-code",
+        "code": "initial-submission",
+        "display": "Initial Submission"
+      }
+    ]
+  },
+  "for": {
+    "display": "WonderDrug 50mg Tablets"
+  },
+  "authoredOn": "2025-02-15T09:00:00+01:00",
+  "lastModified": "2025-02-15T09:00:00+01:00",
+  "requester": {
+    "reference": "{{ORG_UUID}}",
+    "display": "Best Company"
+  },
+  "requestedPerformer": [
+    {
+      "reference": {
+        "display": "Health Authority"
+      }
+    }
+  ],
+  "input": [
+    {
+      "type": {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/uv/apix/CodeSystem/apix-task-input-type",
+            "code": "regulatory-document"
+          }
+        ]
+      },
+      "valueReference": {
+        "reference": "#docref-cover-letter",
+        "display": "Cover Letter"
+      }
+    },
+    {
+      "type": {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/uv/apix/CodeSystem/apix-task-input-type",
+            "code": "regulatory-document"
+          }
+        ]
+      },
+      "valueReference": {
+        "reference": "#docref-application-form",
+        "display": "eAF Application Form"
+      }
+    },
+    {
+      "type": {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/uv/apix/CodeSystem/apix-task-input-type",
+            "code": "regulatory-document"
+          }
+        ]
+      },
+      "valueReference": {
+        "reference": "#docref-qos-update",
+        "display": "Quality Overall Summary"
+      }
+    }
+  ]
+},
+      "request": {
+        "method": "POST",
+        "url": "Task"
+      }
+    }
+  ]
+}

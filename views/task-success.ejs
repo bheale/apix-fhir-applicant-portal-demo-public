@@ -1,0 +1,25 @@
+<div class="card">
+  <div class="success-card">
+    <div class="success-icon">
+      <i class="ph ph-paper-plane-tilt"></i>
+    </div>
+    <div class="success-title">Task Submitted Successfully</div>
+    <div class="success-body">Your submission Task has been created on the FHIR server.</div>
+
+    <div class="kv-grid" style="text-align:left; max-width:400px; margin:0 auto var(--space-6);">
+      <div class="kv-item">
+        <div class="kv-label">Task ID</div>
+        <div class="kv-value mono"><%= taskId %></div>
+      </div>
+      <div class="kv-item">
+        <div class="kv-label">Organization ID</div>
+        <div class="kv-value mono"><%= orgId %></div>
+      </div>
+    </div>
+
+    <div class="flex gap-3" style="justify-content:center; flex-wrap:wrap;">
+      <a href="/subscriptions" class="btn btn-primary"><i class="ph ph-bell-ringing"></i> Set Up Subscription</a>
+      <a href="/related-tasks" class="btn btn-ghost"><i class="ph ph-graph"></i> Related Tasks</a>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,90 @@
+{
+  "resourceType": "Bundle",
+  "type": "transaction",
+  "entry": [
+    {
+      "fullUrl": "{{ORG_UUID}}",
+      "resource": {
+        "resourceType": "Organization",
+        "name": "{{ORG_NAME}}",
+        "identifier": [
+          {
+            "system": "http://{{ORG_NAME}}",
+            "value": "{{ORG_UUID}}"
+          }
+        ],
+        "alias": ["Company Alias"],
+        "contact": [
+          {
+            "telecom": [
+              { "system": "phone", "value": "(+1) 333-111-2222" },
+              { "system": "fax", "value": "(+1) 333-111-2221" },
+              { "system": "email", "value": "company@company.org" }
+            ],
+            "address": {
+              "line": ["33 Fantasy Avenue, Suite 100"],
+              "city": "Imaginary",
+              "state": "MI",
+              "postalCode": "48104",
+              "country": "USA"
+            }
+          }
+        ],
+        "endpoint": [
+          {
+            "display": "Subscribe endpoint for Subscription notifications",
+            "reference": "{{ENDPOINT_UUID}}"
+          },
+          {
+            "display": "Some Other endpoint for business reasons",
+            "identifier": {
+              "system": "http://just/a/placeholder/",
+              "value": "using identifier, but in real circumstance would be another Endpoint instance"
+            }
+          }
+        ]
+      },
+      "request": {
+        "method": "POST",
+        "url": "Organization"
+      }
+    },
+    {
+      "fullUrl": "{{ENDPOINT_UUID}}",
+      "resource": {
+        "resourceType": "Endpoint",
+        "status": "active",
+        "connectionType": [
+          {
+            "coding": [
+              {
+                "system": "http://hl7.org/fhir/uv/apix/CodeSystem/apix-temp",
+                "code": "TEMP-hl7-fhir-subscription-notify"
+              }
+            ]
+          }
+        ],
+        "name": "Best Company FHIR Subscription Notification Endpoint",
+        "identifier": [
+          {
+            "system": "http://{{ORG_NAME}}",
+            "value": "{{ENDPOINT_UUID}}"
+          }
+        ],
+        "address": "{{ENDPOINT_ADDRESS}}",
+        "managingOrganization": {
+          "reference": "{{ORG_UUID}}"
+        },
+        "payload": [
+          {
+            "mimeType": ["application/fhir+json"]
+          }
+        ]
+      },
+      "request": {
+        "method": "POST",
+        "url": "Endpoint"
+      }
+    }
+  ]
+}

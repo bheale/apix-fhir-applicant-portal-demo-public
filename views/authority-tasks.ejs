@@ -1,0 +1,76 @@
+<%# Stamp FHIR base so reference links in JSON viewers resolve correctly %>
+<% if (authorityTasks && authorityTasks[0] && authorityTasks[0].fhirServer) { %>
+  <%- include('partials/_fhir_base', { fhirBase: authorityTasks[0].fhirServer }) %>
+<% } %>
+
+<div class="page-header">
+  <h1 class="page-title"><i class="ph ph-shield-check" style="color:var(--color-primary)"></i> Authority Tasks</h1>
+  <p class="page-subtitle">Tasks created by the Health Authority in response to your submissions.</p>
+</div>
+
+<div class="card">
+  <div class="table-wrapper">
+    <table class="dashboard">
+      <thead>
+        <tr>
+          <th>Task ID</th>
+          <th>Code</th>
+          <th>Status</th>
+          <th>Initiator Task</th>
+          <th>Server</th>
+          <th>Notifications</th>
+          <th>Last Payload</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% authorityTasks.forEach((t, tIdx) => {
+             const last = t.notifications[t.notifications.length - 1];
+        %>
+          <!-- Inject payload into a named JS variable — never into onclick (D-002) -->
+          <% if (last) { %>
+          <script>
+            var _authPayload_<%= tIdx %> = <%- JSON.stringify(last.payload || {}) %>;
+          </script>
+          <% } %>
+          <tr>
+            <td class="text-mono" style="font-size:0.8rem;"><%= t.id %></td>
+            <td style="font-size:0.85rem;"><%= t.task.code?.coding?.[0]?.display || '—' %></td>
+            <td>
+              <%
+                const s = (t.task.status || '').toLowerCase();
+                const cls = s === 'completed' ? 'badge-success' : s === 'in-progress' || s === 'accepted' ? 'badge-warning' : s === 'failed' ? 'badge-danger' : s === 'requested' ? 'badge-info' : 'badge-neutral';
+              %>
+              <span class="badge <%= cls %>"><%= t.task.status %></span>
+            </td>
+            <td class="text-mono" style="font-size:0.8rem;"><%= t.initiatorTaskId || '—' %></td>
+            <td style="font-size:0.8rem; color:var(--color-text-muted); max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="<%= t.fhirServer %>">
+              <%= t.fhirServer %>
+            </td>
+            <td style="text-align:center;">
+              <span class="badge badge-info"><%= t.notifications.length %></span>
+            </td>
+            <td>
+              <% if (last) { %>
+                <button class="action-btn" onclick="openJsonModal(
+                    _authPayload_<%= tIdx %>,
+                    'Notification Payload',
+                    { fetchUrl: '<%= t.fhirServer ? t.fhirServer.replace(/\/+$/, "") + "/Task/" + t.id : "" %>',
+                      resourceType: 'Task' })">
+                  <i class="ph ph-code"></i> View JSON
+                </button>
+              <% } else { %>
+                <span class="text-muted">—</span>
+              <% } %>
+            </td>
+            <td>
+              <button class="action-btn btn-accent" onclick="location.href='/authority-task/<%= t.id %>'">
+                <i class="ph ph-check-circle"></i> Complete
+              </button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>

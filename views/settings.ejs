@@ -1,0 +1,98 @@
+<%- /* views/settings.ejs — FHIR auth configuration */ %>
+<% pageTitle = "Settings" %>
+
+<div class="page-header">
+  <h1><i class="ph ph-gear"></i> Settings</h1>
+  <p class="page-subtitle">Configure authentication for your FHIR server connection. Settings are stored in your session and cleared when you close the browser.</p>
+</div>
+
+<% if (locals.saved) { %>
+<div class="alert alert-success" style="margin-bottom:var(--space-4);">
+  <i class="ph ph-check-circle"></i> Settings saved successfully.
+</div>
+<% } %>
+
+<form method="POST" action="/settings" class="card" style="max-width:640px;">
+  <div class="card-body" style="display:flex; flex-direction:column; gap:var(--space-4);">
+
+    <!-- Auth Type -->
+    <div class="form-group">
+      <label for="fhirAuthType" class="form-label">Authentication Type</label>
+      <select id="fhirAuthType" name="fhirAuthType" class="form-control" onchange="updateAuthFields()">
+        <option value="none"    <%= (locals.fhirAuthType === 'none'   || !locals.fhirAuthType) ? 'selected' : '' %>>None</option>
+        <option value="apikey"  <%= locals.fhirAuthType === 'apikey'  ? 'selected' : '' %>>API Subscription Key (Ocp-Apim-Subscription-Key)</option>
+        <option value="bearer"  <%= locals.fhirAuthType === 'bearer'  ? 'selected' : '' %>>Bearer Token</option>
+        <option value="custom"  <%= locals.fhirAuthType === 'custom'  ? 'selected' : '' %>>Custom Header</option>
+      </select>
+    </div>
+
+    <!-- API Key -->
+    <div class="form-group" id="field-apikey" style="display:none;">
+      <label for="fhirApiKey" class="form-label">API Subscription Key</label>
+      <input type="password"
+             id="fhirApiKey"
+             name="fhirApiKey"
+             class="form-control"
+             placeholder="Enter your Ocp-Apim-Subscription-Key value"
+             value="<%= locals.fhirApiKey || '' %>">
+      <small class="form-hint">Sent as the <code>Ocp-Apim-Subscription-Key</code> header on every FHIR request.</small>
+    </div>
+
+    <!-- Bearer Token -->
+    <div class="form-group" id="field-bearer" style="display:none;">
+      <label for="fhirBearerToken" class="form-label">Bearer Token</label>
+      <input type="password"
+             id="fhirBearerToken"
+             name="fhirBearerToken"
+             class="form-control"
+             placeholder="Enter your bearer token (without 'Bearer ' prefix)"
+             value="<%= locals.fhirBearerToken || '' %>">
+      <small class="form-hint">Sent as <code>Authorization: Bearer &lt;token&gt;</code> on every FHIR request.</small>
+    </div>
+
+    <!-- Custom Header -->
+    <div class="form-group" id="field-custom" style="display:none;">
+      <label for="fhirCustomHeaderName" class="form-label">Custom Header Name</label>
+      <input type="text"
+             id="fhirCustomHeaderName"
+             name="fhirCustomHeaderName"
+             class="form-control"
+             placeholder="e.g. X-My-Auth-Token"
+             value="<%= locals.fhirCustomHeaderName || '' %>">
+
+      <label for="fhirCustomHeaderValue" class="form-label" style="margin-top:var(--space-2);">Custom Header Value</label>
+      <input type="password"
+             id="fhirCustomHeaderValue"
+             name="fhirCustomHeaderValue"
+             class="form-control"
+             placeholder="Header value"
+             value="<%= locals.fhirCustomHeaderValue || '' %>">
+      <small class="form-hint">Sent verbatim as <code>&lt;name&gt;: &lt;value&gt;</code> on every FHIR request.</small>
+    </div>
+
+    <div style="display:flex; gap:var(--space-3); align-items:center; margin-top:var(--space-2);">
+      <button type="submit" class="btn btn-primary">
+        <i class="ph ph-floppy-disk"></i> Save Settings
+      </button>
+      <a href="/" class="btn btn-secondary">Cancel</a>
+      <span style="flex:1"></span>
+      <form method="POST" action="/settings/clear" style="margin:0;">
+        <button type="submit" class="btn btn-danger-outline"
+                onclick="return confirm('Clear all auth settings?')">
+          <i class="ph ph-trash"></i> Clear
+        </button>
+      </form>
+    </div>
+  </div>
+</form>
+
+<script>
+function updateAuthFields() {
+  var type = document.getElementById('fhirAuthType').value;
+  document.getElementById('field-apikey').style.display  = type === 'apikey'  ? '' : 'none';
+  document.getElementById('field-bearer').style.display  = type === 'bearer'  ? '' : 'none';
+  document.getElementById('field-custom').style.display  = type === 'custom'  ? '' : 'none';
+}
+// Run on page load to show the right field for the currently-saved type.
+updateAuthFields();
+</script>

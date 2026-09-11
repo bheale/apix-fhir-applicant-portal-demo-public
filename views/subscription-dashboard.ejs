@@ -1,0 +1,117 @@
+<%# Stamp FHIR base so reference links in JSON viewers resolve correctly %>
+<% if (subscriptions && subscriptions[0] && subscriptions[0].fhirServer) { %>
+  <%- include('partials/_fhir_base', { fhirBase: subscriptions[0].fhirServer }) %>
+<% } %>
+
+<div class="page-header">
+  <h1 class="page-title"><i class="ph ph-bell-ringing" style="color:var(--color-primary)"></i> Subscription Dashboard</h1>
+  <p class="page-subtitle">Monitor active FHIR Subscriptions and review incoming notification events.</p>
+</div>
+
+<div class="card">
+  <div class="table-wrapper">
+    <table class="dashboard">
+      <thead>
+        <tr>
+          <th>Subscription</th>
+          <th>Topic</th>
+          <th>Reason</th>
+          <th>Notifications</th>
+          <th>Last Task Status</th>
+          <th>Last Notification</th>
+          <th>Live Status</th>
+          <th>Inspect</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% subscriptions.forEach(sub => {
+             const last = sub.notifications[sub.notifications.length - 1];
+        %>
+          <tr>
+            <td>
+              <div class="text-mono" style="font-size:0.8rem;"><%= sub.id %></div>
+              <div style="font-size:0.75rem; color:var(--color-text-muted); margin-top:2px;">@ <%= sub.fhirServer %></div>
+            </td>
+
+            <td>
+              <span title="<%= sub.topic %>" style="display:block; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.82rem;">
+                <%= sub.topic.substring(0, 30) %>...
+              </span>
+              <button class="btn-link" style="font-size:0.75rem;" onclick="copyText('<%= sub.topic %>')">
+                <i class="ph ph-copy"></i> Copy URL
+              </button>
+            </td>
+
+            <td style="font-size:0.85rem;"><%= sub.reason %></td>
+
+            <td style="text-align:center;">
+              <span class="badge badge-info"><%= sub.notifications.length %></span>
+            </td>
+
+            <td>
+              <% if (last && last.taskStatus) { %>
+                <span class="badge <%= last.taskStatus === 'completed' ? 'badge-success' : last.taskStatus === 'in-progress' ? 'badge-warning' : last.taskStatus === 'failed' ? 'badge-danger' : 'badge-info' %>">
+                  <%= last.taskStatus %>
+                </span>
+              <% } else { %>
+                <span class="text-muted">—</span>
+              <% } %>
+            </td>
+
+            <td style="font-size:0.82rem; color:var(--color-text-muted);">
+              <%= last?.date || '—' %>
+            </td>
+
+            <td>
+              <button class="action-btn btn-ghost" onclick="fetchStatus('<%= sub.id %>', '<%= sub.fhirServer %>')">
+                <i class="ph ph-activity"></i> Status
+              </button>
+              <div id="status-<%= sub.id %>" class="popover" style="min-width:300px;"></div>
+            </td>
+
+            <td>
+              <% if (last) { %>
+                <button class="action-btn" onclick="openJsonModal(
+                    <%= JSON.stringify(last.payload) %>,
+                    'Subscription/<%= sub.id %>',
+                    { fetchUrl: '<%= sub.fhirServer.replace(/\/+$/,"") %>/Subscription/<%= sub.id %>',
+                      resourceType: 'Subscription' })">
+                  <i class="ph ph-code"></i> View JSON
+                </button>
+                <div id="notif-<%= sub.id %>" class="popover" style="display:none;">
+                  <pre><%= JSON.stringify(last.payload, null, 2) %></pre>
+                </div>
+              <% } else { %>
+                <span class="text-muted">—</span>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function fetchStatus(id, server) {
+  fetch(`/subscription-status/${id}?fhirUrl=${encodeURIComponent(server)}`)
+    .then(r => r.json())
+    .then(json => {
+      const summary = `Status: ${json.status || 'unknown'}
+Topic: ${json.topic || '—'}
+Endpoint: ${json.endpoint || '—'}
+Last Updated: ${json.lastUpdated || '—'}
+Source: ${json.derived ? 'Derived from Subscription' : 'Actual $status response'}
+Error: ${json.error || '—'}`.trim();
+
+      const el = document.getElementById('status-' + id);
+      el.innerHTML = buildJsonViewer(json, 'SubscriptionStatus');
+      el.style.display = 'block';
+    })
+    .catch(err => {
+      const el = document.getElementById('status-' + id);
+      el.innerHTML = `<pre style="color:var(--color-danger)">Error: ${err.message}</pre>`;
+      el.style.display = 'block';
+    });
+}
+</script>

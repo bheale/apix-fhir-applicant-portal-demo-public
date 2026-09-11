@@ -1,0 +1,308 @@
+<%- include('partials/_fhir_base', { fhirBase: task.fhirServer }) %>
+
+<div class="page-header">
+  <h1 class="page-title"><i class="ph ph-shield-check" style="color:var(--color-primary)"></i> Complete Task</h1>
+  <p class="page-subtitle">Review this Authority Task and submit your response.</p>
+</div>
+
+<!-- FHIR Resource Card -->
+<div class="fhir-card">
+  <div class="fhir-card-header">
+    <div>
+      <div class="fhir-card-type">Task</div>
+      <div class="fhir-card-id"><%= task.id %></div>
+    </div>
+    <div>
+      <%
+        const s = (task.task.status || '').toLowerCase();
+        const cls = s === 'completed' ? 'badge-success' : s === 'in-progress' || s === 'accepted' ? 'badge-warning' : s === 'failed' ? 'badge-danger' : 'badge-info';
+      %>
+      <span class="badge <%= cls %>"><%= task.task.status %></span>
+    </div>
+  </div>
+  <div class="fhir-card-fields">
+    <div class="fhir-field">
+      <div class="fhir-field-label">Initiator Task</div>
+      <div class="fhir-field-value text-mono"><%= task.initiatorTaskId || '—' %></div>
+    </div>
+    <div class="fhir-field">
+      <div class="fhir-field-label">FHIR Server</div>
+      <div class="fhir-field-value" style="font-size:0.8rem; word-break:break-all;"><%= task.fhirServer %></div>
+    </div>
+  </div>
+  <div style="margin-top:var(--space-4);">
+    <button class="action-btn btn-ghost" onclick="openJsonModal(
+        _taskDetailJson,
+        'Task/<%= task.id %>',
+        { fetchUrl: '<%= task.fhirServer.replace(/\/+$/,'') %>/Task/<%= task.id %>',
+          resourceType: 'Task' })">
+      <i class="ph ph-code"></i> View Full Task JSON
+    </button>
+  </div>
+</div>
+
+<!-- Store task JSON safely in a script block — never in onclick attributes -->
+<script>
+  var _taskDetailJson = <%- JSON.stringify(task.task) %>;
+</script>
+
+<%
+/* ── Helper: extract DocumentReference ID from a reference string ── */
+function docRefId(ref) {
+  if (!ref) return null;
+  const m = ref.match(/DocumentReference\/([^\/]+)/);
+  return m ? m[1] : null;
+}
+
+const taskInputs  = task.task.input  || [];
+const taskOutputs = task.task.output || [];
+const fhirServer  = task.fhirServer || '';
+%>
+
+<!-- ── Task Inputs ────────────────────────────────────────────── -->
+<% if (taskInputs.length > 0) { %>
+<div class="card mt-4">
+  <div class="card-header">
+    <div class="card-title"><i class="ph ph-arrow-circle-down"></i> Task Inputs (<%= taskInputs.length %>)</div>
+  </div>
+  <% taskInputs.forEach((inp, idx) => {
+    const typeDisplay = inp.type?.text || inp.type?.coding?.[0]?.display || inp.type?.coding?.[0]?.code || 'Input';
+    const ref = inp.valueReference?.reference || '';
+    const drId = docRefId(ref);
+    const isString = typeof inp.valueString !== 'undefined';
+  %>
+  <div style="padding:var(--space-3) var(--space-4); border-bottom:1px solid var(--color-border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--space-3);">
+    <div style="flex:1; min-width:0;">
+      <div class="kv-label"><%= typeDisplay %></div>
+      <% if (isString) { %>
+        <div class="kv-value" style="margin-top:2px;"><%= inp.valueString %></div>
+      <% } else if (drId) { %>
+        <div class="kv-value mono" style="margin-top:2px; font-size:0.8rem;">DocumentReference/<%= drId %></div>
+      <% } else if (ref) { %>
+        <div class="kv-value mono" style="margin-top:2px; font-size:0.8rem;"><%= ref %></div>
+      <% } %>
+    </div>
+    <% if (drId && inp.type?.coding?.[0]?.code !== 'list-of-questions') { %>
+    <div style="display:flex; gap:var(--space-2); flex-shrink:0;">
+      <a href="/documents/<%= drId %>/binary?fhirUrl=<%= encodeURIComponent(fhirServer) %>"
+         target="_blank"
+         class="btn btn-primary btn-sm"
+         title="Open PDF in new tab">
+        <i class="ph ph-file-pdf"></i> View PDF
+      </a>
+      <a href="/documents/<%= drId %>/binary?download=1&fhirUrl=<%= encodeURIComponent(fhirServer) %>"
+         class="btn btn-ghost btn-sm"
+         title="Download PDF">
+        <i class="ph ph-download-simple"></i> Download
+      </a>
+      <a href="/documents/<%= drId %>?fhirUrl=<%= encodeURIComponent(fhirServer) %>"
+         class="btn btn-ghost btn-sm"
+         title="View DocumentReference metadata">
+        <i class="ph ph-info"></i> Metadata
+      </a>
+    </div>
+    <% } %>
+  </div>
+  <% }) %>
+</div>
+<% } %>
+
+<!-- ── Task Outputs ───────────────────────────────────────────── -->
+<% if (taskOutputs.length > 0) { %>
+<div class="card mt-4">
+  <div class="card-header">
+    <div class="card-title"><i class="ph ph-arrow-circle-up"></i> Task Outputs (<%= taskOutputs.length %>)</div>
+  </div>
+  <% taskOutputs.forEach((out, idx) => {
+    const typeDisplay = out.type?.text || out.type?.coding?.[0]?.display || out.type?.coding?.[0]?.code || 'Output';
+    const ref = out.valueReference?.reference || '';
+    const drId = docRefId(ref);
+    const isString = typeof out.valueString !== 'undefined';
+    const isQr = ref.startsWith('QuestionnaireResponse/');
+  %>
+  <div style="padding:var(--space-3) var(--space-4); border-bottom:1px solid var(--color-border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--space-3);">
+    <div style="flex:1; min-width:0;">
+      <div class="kv-label"><%= typeDisplay %></div>
+      <% if (isString) { %>
+        <div class="kv-value" style="margin-top:2px;"><%= out.valueString %></div>
+      <% } else if (drId) { %>
+        <div class="kv-value mono" style="margin-top:2px; font-size:0.8rem;">DocumentReference/<%= drId %></div>
+      <% } else if (isQr) { %>
+        <div class="kv-value mono" style="margin-top:2px; font-size:0.8rem;"><%= ref %></div>
+      <% } else if (ref) { %>
+        <div class="kv-value mono" style="margin-top:2px; font-size:0.8rem;"><%= ref %></div>
+      <% } %>
+    </div>
+    <div style="display:flex; gap:var(--space-2); flex-shrink:0;">
+      <% if (drId) { %>
+        <a href="/documents/<%= drId %>/binary?fhirUrl=<%= encodeURIComponent(fhirServer) %>"
+           target="_blank"
+           class="btn btn-primary btn-sm">
+          <i class="ph ph-file-pdf"></i> View PDF
+        </a>
+        <a href="/documents/<%= drId %>/binary?download=1&fhirUrl=<%= encodeURIComponent(fhirServer) %>"
+           class="btn btn-ghost btn-sm">
+          <i class="ph ph-download-simple"></i> Download
+        </a>
+        <a href="/documents/<%= drId %>?fhirUrl=<%= encodeURIComponent(fhirServer) %>"
+           class="btn btn-ghost btn-sm">
+          <i class="ph ph-info"></i> Metadata
+        </a>
+      <% } %>
+    </div>
+  </div>
+  <% }) %>
+</div>
+<% } %>
+
+<%
+// Detect a Questionnaire input wrapped in a DocumentReference.
+// The regulator sets type.coding[0].code = "questionnaire" and points
+// valueReference at a DocumentReference that holds the Questionnaire URL.
+const qInput = task.task.input?.find(i =>
+    i.type?.coding?.[0]?.code === 'list-of-questions' &&
+    i.valueReference?.reference?.includes('DocumentReference/')
+);
+const questionnaireAnswered = task.task.output?.some(
+  o => o.type?.coding?.some(c => c.code === "applicant-questionnaireResponse")
+    || o.valueReference?.reference?.startsWith("QuestionnaireResponse/")
+);
+const qrOut = task.task.output?.find(
+  o => o.type?.coding?.some(c => c.code === "applicant-questionnaireResponse")
+    || o.valueReference?.reference?.startsWith("QuestionnaireResponse/")
+);
+%>
+
+<% if (qInput) { %>
+<div class="card mt-4">
+  <div class="card-header">
+    <div class="card-title"><i class="ph ph-clipboard-text"></i> Questionnaire Input Detected</div>
+  </div>
+  <% if (questionnaireAnswered) { %>
+    <div class="alert alert-success">
+      <i class="ph ph-check-circle"></i>
+      <strong>Questionnaire has been answered.</strong>
+    </div>
+    <button class="btn-ghost action-btn" onclick="loadQr()">
+      <i class="ph ph-eye"></i> Show Questionnaire Answers
+    </button>
+    <div id="qrWindow" style="display:none; margin-top:var(--space-3);">
+      <div class="json-viewer-container">
+        <div class="json-viewer-toolbar">
+          <span class="json-viewer-lang">json · QuestionnaireResponse</span>
+          <button type="button" class="json-viewer-copy" onclick="copyJsonBlock(this)"><i class="ph ph-copy"></i> Copy</button>
+        </div>
+        <div class="json-viewer-body"><pre id="qrJson"></pre></div>
+      </div>
+    </div>
+  <% } else { %>
+    <form method="GET" action="/authority-task/<%= task.id %>/answer-questionnaire">
+      <input type="hidden" name="docRefId" value="<%= qInput.valueReference.reference.replace('DocumentReference/', '') %>">
+      <button type="submit" class="btn-accent"><i class="ph ph-clipboard-text"></i> Answer Questionnaire</button>
+    </form>
+  <% } %>
+</div>
+<% } %>
+
+<% if (!qInput || !questionnaireAnswered) { %>
+<div class="card mt-4">
+  <div class="card-header">
+    <div class="card-title"><i class="ph ph-plus-circle"></i> Add Response Output</div>
+  </div>
+  <div style="padding:var(--space-4);">
+    <form method="POST" action="/authority-task/<%= task.id %>/add-output"
+          enctype="multipart/form-data" class="form-wide">
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-4); margin-bottom:var(--space-4);">
+        <label style="grid-column:1/-1;">
+          Attach Document (PDF) <span style="font-weight:400; font-size:0.8rem; color:var(--color-text-muted);">(optional)</span>
+          <input type="file" name="docFile" accept="application/pdf">
+        </label>
+        <label>
+          CTD Section <span style="font-weight:400; font-size:0.8rem;">(DocumentReference.type)</span>
+          <select name="docType">
+            <% (ctdSections || []).forEach(sec => { %>
+              <option value="<%= sec.system %>|<%= sec.code %>|<%= sec.display %>">
+                <%= sec.display %>
+              </option>
+            <% }) %>
+          </select>
+        </label>
+        <label>
+          CTD Module <span style="font-weight:400; font-size:0.8rem;">(DocumentReference.category)</span>
+          <select name="docCategory">
+            <% (ctdModules || []).forEach(mod => { %>
+              <option value="<%= mod.system %>|<%= mod.code %>|<%= mod.display %>">
+                <%= mod.display %>
+              </option>
+            <% }) %>
+          </select>
+        </label>
+        <label style="grid-column:1/-1;">
+          Document Description
+          <input name="docDescription" placeholder="e.g. Clinical study report, safety data summary...">
+        </label>
+      </div>
+
+      <label>
+        Note <span style="font-weight:400; font-size:0.8rem; color:var(--color-text-muted);">(optional — appended as a text output)</span>
+        <textarea name="outputText" rows="3" placeholder="Optional accompanying note..."></textarea>
+      </label>
+
+      <div style="margin-top:var(--space-3);">
+        <button type="submit" class="btn-primary">
+          <i class="ph ph-arrow-circle-up"></i> Add Output
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+<% } %>
+
+<div class="form-section mt-4">
+  <h3><i class="ph ph-flag-checkered"></i> Complete Task</h3>
+  <form method="POST" action="/authority-task/<%= task.id %>/complete">
+    <label>
+      FHIR Server URL
+      <input name="fhirUrl" value="<%= task.fhirServer %>" required>
+    </label>
+    <label>
+      Completion Note
+      <textarea name="blurb" required placeholder="Brief note summarizing the completion..."></textarea>
+    </label>
+    <div>
+      <button type="submit" class="btn-accent"><i class="ph ph-flag-checkered"></i> Complete Task</button>
+    </div>
+  </form>
+</div>
+
+<script>
+async function loadQr() {
+  const win = document.getElementById('qrWindow');
+  const pre = document.getElementById('qrJson');
+  if (win.style.display === 'none') {
+    try {
+      const fhirBase = '<%= task.fhirServer %>';
+      let ref = '<%= qrOut?.valueReference?.reference %>';
+      // If the output points to a DocumentReference, follow it to get the QR
+      if (ref.startsWith('DocumentReference/')) {
+        const docRes = await fetch('/fhir-proxy?url=' + encodeURIComponent(`${fhirBase}/${ref}`), { headers: { 'Accept': 'application/fhir+json' } });
+        const docRef = await docRes.json();
+        ref = docRef.content?.[0]?.attachment?.url;
+      }
+      const res = await fetch('/fhir-proxy?url=' + encodeURIComponent(`${fhirBase}/${ref}`), {
+        headers: { 'Accept': 'application/fhir+json' }
+      });
+      const data = await res.json();
+      const str = JSON.stringify(data, null, 2);
+      pre.innerHTML = typeof highlightJson === 'function' ? highlightJson(str) : str;
+      if (window.hljs) hljs.highlightElement(pre);
+    } catch(e) {
+      pre.textContent = 'Error: ' + e.message;
+    }
+    win.style.display = 'block';
+  } else {
+    win.style.display = 'none';
+  }
+}
+</script>

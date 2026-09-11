@@ -1,0 +1,56 @@
+<div class="card">
+  <div class="success-card">
+    <div class="success-icon" style="background:var(--color-accent-light); color:var(--color-accent-dark);">
+      <i class="ph ph-bell-ringing"></i>
+    </div>
+    <div class="success-title">Subscription Created</div>
+    <div class="success-body">Your FHIR Subscription is now active and ready to receive notifications.</div>
+
+    <div class="kv-grid" style="text-align:left; max-width:400px; margin:0 auto var(--space-6);">
+      <div class="kv-item">
+        <div class="kv-label">Subscription ID</div>
+        <div class="kv-value mono"><%= subscriptionId %></div>
+      </div>
+      <div class="kv-item">
+        <div class="kv-label">Status</div>
+        <div class="kv-value">
+          <span class="badge <%= status === 'active' ? 'badge-success' : 'badge-info' %>"><%= status %></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex gap-3" style="justify-content:center; margin-bottom:var(--space-5);">
+      <button onclick="toggleSubscriptionJson()" class="btn btn-ghost">
+        <i class="ph ph-code"></i> Show Subscription Details
+      </button>
+    </div>
+
+    <div id="subJsonPanel" style="display:none; text-align:left; max-width:700px; margin:0 auto;">
+      <div class="json-viewer-container">
+        <div class="json-viewer-toolbar">
+          <span class="json-viewer-lang">json · Subscription</span>
+          <button class="json-viewer-copy" onclick="copyJsonBlock(this)"><i class="ph ph-copy"></i> Copy</button>
+        </div>
+        <div class="json-viewer-body">
+          <pre><code class="language-json"><%= subscriptionJson %></code></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex gap-3" style="justify-content:center; flex-wrap:wrap; margin-top:var(--space-5);">
+      <a href="/subscriptions" class="btn btn-primary"><i class="ph ph-bell-ringing"></i> View Dashboard</a>
+      <a href="/" class="btn btn-ghost"><i class="ph ph-house"></i> Home</a>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleSubscriptionJson() {
+  const panel = document.getElementById('subJsonPanel');
+  const open = panel.style.display === 'block';
+  panel.style.display = open ? 'none' : 'block';
+  if (!open && window.hljs) {
+    panel.querySelectorAll('code').forEach(el => hljs.highlightElement(el));
+  }
+}
+</script>

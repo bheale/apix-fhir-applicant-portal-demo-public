@@ -1,0 +1,853 @@
+<%#
+  views/submitter/annual-report.ejs
+  Submitter-Centric Annual Regulatory Reporting Dashboard
+  APIX IG-aligned styling — company's internal view of regulatory activity
+  Data: fhirUrl, fetchError, summary (object), timelineEventsJson, organizations
+%>
+
+<style>
+/* ── Submitter Dashboard — scoped styles ──────────────────────────── */
+.sub-dash { max-width: 1120px; }
+
+/* Section headers — match APIX IG style */
+.sub-header {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-primary, #1a3a5c);
+  border-bottom: 2px solid var(--color-primary, #1a3a5c);
+  padding-bottom: 6px;
+  margin-bottom: var(--space-4, 16px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* KPI tiles */
+.sub-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-4, 16px);
+  margin-bottom: var(--space-6, 24px);
+}
+
+.sub-kpi {
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #d0d7e3);
+  border-top: 3px solid var(--color-primary, #1a3a5c);
+  border-radius: var(--radius-md, 6px);
+  padding: var(--space-4, 16px);
+  box-shadow: var(--shadow-xs);
+}
+
+.sub-kpi.kpi-alert { border-top-color: var(--color-warning, #92400e); }
+.sub-kpi.kpi-success { border-top-color: var(--color-success, #166534); }
+.sub-kpi.kpi-danger { border-top-color: var(--color-danger, #991b1b); }
+
+.sub-kpi-value {
+  font-size: 2.1rem;
+  font-weight: 800;
+  color: var(--color-primary, #1a3a5c);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.sub-kpi.kpi-alert .sub-kpi-value  { color: var(--color-warning, #92400e); }
+.sub-kpi.kpi-success .sub-kpi-value { color: var(--color-success, #166534); }
+.sub-kpi.kpi-danger .sub-kpi-value  { color: var(--color-danger, #991b1b); }
+
+.sub-kpi-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted, #4b5870);
+}
+
+.sub-kpi-sub {
+  font-size: 0.72rem;
+  color: var(--color-text-light, #7a8799);
+  margin-top: 2px;
+}
+
+/* Two/three column layouts */
+.sub-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5, 20px);
+  margin-bottom: var(--space-5, 20px);
+}
+
+.sub-3col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--space-5, 20px);
+  margin-bottom: var(--space-5, 20px);
+}
+
+/* Bar rows */
+.sub-bar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  margin-bottom: 9px;
+  font-size: 0.82rem;
+}
+
+.sub-bar-label {
+  flex: 0 0 150px;
+  font-size: 0.77rem;
+  color: var(--color-text, #111);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sub-bar-track {
+  flex: 1;
+  height: 7px;
+  background: var(--color-border, #d0d7e3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.sub-bar-fill {
+  height: 100%;
+  background: var(--color-primary, #1a3a5c);
+  border-radius: 4px;
+}
+
+.sub-bar-fill--accent   { background: var(--color-accent, #2d6da4); }
+.sub-bar-fill--success  { background: var(--color-success, #166534); }
+.sub-bar-fill--warning  { background: var(--color-warning, #92400e); }
+.sub-bar-fill--danger   { background: var(--color-danger, #991b1b); }
+.sub-bar-fill--neutral  { background: var(--color-text-light, #7a8799); }
+
+.sub-bar-count {
+  flex: 0 0 28px;
+  text-align: right;
+  font-size: 0.77rem;
+  font-weight: 700;
+  color: var(--color-text-muted, #4b5870);
+}
+
+/* Workflow stage pipeline */
+.sub-pipeline {
+  display: flex;
+  border: 1px solid var(--color-border, #d0d7e3);
+  border-radius: var(--radius-md, 6px);
+  overflow: hidden;
+  margin-bottom: var(--space-5, 20px);
+}
+
+.sub-pipeline-stage {
+  flex: 1;
+  padding: var(--space-3, 12px) var(--space-2, 8px);
+  text-align: center;
+  border-right: 1px solid var(--color-border, #d0d7e3);
+  background: var(--color-surface-alt, #f6f8fa);
+  position: relative;
+}
+
+.sub-pipeline-stage:last-child { border-right: none; }
+.sub-pipeline-stage.active { background: var(--color-primary-light, #eaeff5); }
+.sub-pipeline-stage.action-needed { background: var(--color-warning-bg, #fef3c7); }
+
+.sub-pipeline-num {
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-light, #7a8799);
+  margin-bottom: 3px;
+}
+
+.sub-pipeline-count {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--color-primary, #1a3a5c);
+  line-height: 1;
+}
+
+.sub-pipeline-stage.action-needed .sub-pipeline-count {
+  color: var(--color-warning, #92400e);
+}
+
+.sub-pipeline-name {
+  font-size: 0.63rem;
+  color: var(--color-text-muted, #4b5870);
+  margin-top: 3px;
+  line-height: 1.3;
+}
+
+/* Awaiting action table */
+.action-needed-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-warning-bg, #fef3c7);
+  color: var(--color-warning, #92400e);
+  border: 1px solid rgba(146,64,14,0.25);
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 7px;
+}
+
+/* Timeline canvas */
+.sub-timeline-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border, #d0d7e3);
+  border-radius: var(--radius-md, 6px);
+  background: var(--color-surface, #fff);
+}
+
+/* IG code-block style for reference snippets */
+.sub-code-block {
+  background: #152132;
+  border-radius: var(--radius-md, 6px);
+  overflow: hidden;
+  border: 1px solid #2a3f52;
+}
+
+.sub-code-block-bar {
+  background: #12202e;
+  padding: 5px 14px;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.63rem;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.sub-code-block pre {
+  margin: 0;
+  padding: 12px 14px;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.77rem;
+  line-height: 1.7;
+  color: #b8cfe0;
+  overflow-x: auto;
+  max-height: 220px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* Product table */
+.sub-product-table td, .sub-product-table th { padding: var(--space-2) var(--space-3); }
+
+.sub-empty {
+  text-align: center;
+  padding: var(--space-12, 48px);
+  color: var(--color-text-muted, #4b5870);
+}
+
+@media (max-width: 860px) {
+  .sub-2col, .sub-3col { grid-template-columns: 1fr; }
+  .sub-pipeline { flex-wrap: wrap; }
+  .sub-pipeline-stage { flex: 0 0 33.33%; }
+}
+</style>
+
+<%# ── Page header ─────────────────────────────────────────────── %>
+<div class="page-header sub-dash">
+  <div class="page-title">
+    <i class="ph ph-chart-line-up"></i> Submitter Annual Regulatory Report
+  </div>
+  <div class="page-subtitle">
+    Company-centric view of all regulatory submissions, workflow stages, and outstanding actions.
+    <% if (fhirUrl) { %>
+      · <span class="text-mono" style="font-size:0.78rem;"><%= fhirUrl %></span>
+    <% } %>
+  </div>
+</div>
+
+<%# ── FHIR server input if not set ───────────────────────────── %>
+<% if (!fhirUrl) { %>
+<div class="card sub-dash" style="max-width:600px; margin-bottom:var(--space-5);">
+  <div class="card-header"><div class="card-title"><i class="ph ph-link"></i> Connect to FHIR Server</div></div>
+  <form method="GET" action="/submitter/annual-report">
+    <label>FHIR Base URL
+      <input name="fhirUrl" placeholder="https://your-fhir-server.org/fhir" required>
+    </label>
+    <div><button type="submit"><i class="ph ph-magnifying-glass"></i> Load Data</button></div>
+  </form>
+  <div class="alert alert-info mt-4" style="margin-bottom:0;">
+    <i class="ph ph-info"></i>
+    <div>Showing data from in-memory stores only. Provide a FHIR URL to load live data from the server.</div>
+  </div>
+</div>
+<% } %>
+
+<% if (fetchError) { %>
+<div class="alert alert-danger sub-dash" style="max-width:1120px; margin-bottom:var(--space-4);">
+  <i class="ph ph-warning-circle"></i>
+  <div><strong>Could not fetch from FHIR server.</strong> Showing in-memory data only.<br>
+  <span style="font-size:0.8rem;"><%= fetchError %></span></div>
+</div>
+<% } %>
+
+<% if (!summary || summary.totalTasks === 0) { %>
+<div class="card sub-dash" style="max-width:1120px;">
+  <div class="sub-empty">
+    <div style="font-size:2rem; margin-bottom:var(--space-4); color:var(--color-text-light);"><i class="ph ph-database"></i></div>
+    <div style="font-size:1rem; font-weight:600; margin-bottom:var(--space-2);">No data available</div>
+    <div style="font-size:0.85rem; margin-bottom:var(--space-5);">Submit a Task or generate demo data first.</div>
+    <div style="display:flex; gap:var(--space-3); justify-content:center;">
+      <a href="/submit-task" class="btn btn-primary"><i class="ph ph-paper-plane-tilt"></i> Submit a Task</a>
+      <a href="/demo/generate" class="btn btn-ghost"><i class="ph ph-flask"></i> Generate Demo Data</a>
+    </div>
+  </div>
+</div>
+<% } else { %>
+<% const s = summary; %>
+
+<%# ══════════════════════════════════════════════════════════════
+    SECTION 1 — KPI STRIP
+    ══════════════════════════════════════════════════════════════ %>
+<div class="sub-kpi-row sub-dash">
+
+  <div class="sub-kpi">
+    <div class="sub-kpi-value"><%= s.totalTasks %></div>
+    <div class="sub-kpi-label">Total Tasks</div>
+    <div class="sub-kpi-sub">All procedures</div>
+  </div>
+
+  <div class="sub-kpi">
+    <div class="sub-kpi-value"><%= s.totalSubmissions %></div>
+    <div class="sub-kpi-label">Submissions</div>
+    <div class="sub-kpi-sub">Company-initiated</div>
+  </div>
+
+  <div class="sub-kpi <%= s.totalAwaitingAction > 0 ? 'kpi-alert' : '' %>">
+    <div class="sub-kpi-value"><%= s.totalAwaitingAction %></div>
+    <div class="sub-kpi-label">Awaiting Our Action</div>
+    <div class="sub-kpi-sub">Clock-stop, questions, failed validation</div>
+  </div>
+
+  <div class="sub-kpi kpi-success">
+    <div class="sub-kpi-value"><%= s.approved %></div>
+    <div class="sub-kpi-label">Approved</div>
+    <div class="sub-kpi-sub">Final positive decisions</div>
+  </div>
+
+  <div class="sub-kpi kpi-danger">
+    <div class="sub-kpi-value"><%= s.rejected %></div>
+    <div class="sub-kpi-label">Rejected</div>
+    <div class="sub-kpi-sub">Final negative decisions</div>
+  </div>
+
+  <div class="sub-kpi">
+    <div class="sub-kpi-value"><%= s.avgDecisionDays || '—' %></div>
+    <div class="sub-kpi-label">Avg Days to Decision</div>
+    <div class="sub-kpi-sub">Submission → approval/rejection</div>
+  </div>
+
+  <div class="sub-kpi">
+    <div class="sub-kpi-value"><%= s.avgResponseDays || '—' %></div>
+    <div class="sub-kpi-label">Avg Response Time</div>
+    <div class="sub-kpi-sub">Question → submitter response</div>
+  </div>
+
+  <div class="sub-kpi">
+    <div class="sub-kpi-value"><%= s.totalDocRefs %></div>
+    <div class="sub-kpi-label">Documents Filed</div>
+    <div class="sub-kpi-sub">DocumentReferences across all tasks</div>
+  </div>
+
+</div>
+
+<%# ══════════════════════════════════════════════════════════════
+    SECTION 2 — WORKFLOW STAGE PIPELINE
+    ══════════════════════════════════════════════════════════════ %>
+<div class="card sub-dash" style="max-width:1120px; margin-bottom:var(--space-5);">
+  <div class="sub-header"><i class="ph ph-path"></i> Regulatory Workflow Stage Pipeline</div>
+  <div class="sub-pipeline">
+    <%
+      const pipelineStages = [
+        { n: 1, name: 'Submitted',          note: 'Awaiting validation' },
+        { n: 2, name: 'Validation',          note: 'Authority checks documents' },
+        { n: 3, name: 'Under Assessment',    note: 'Authority scientific review' },
+        { n: 4, name: 'Clock Stop',          note: 'Company must respond' },
+        { n: 5, name: 'Response Review',     note: 'Authority resumes assessment' },
+        { n: 6, name: 'Final Decision',      note: 'Approved / Rejected' },
+      ];
+    %>
+    <% pipelineStages.forEach(ps => {
+      const count = s.byStage[ps.n] || 0;
+      const isActionStage = ps.n === 4;
+      const hasItems = count > 0;
+    %>
+    <div class="sub-pipeline-stage <%= hasItems ? 'active' : '' %> <%= isActionStage && hasItems ? 'action-needed' : '' %>">
+      <div class="sub-pipeline-num">Stage <%= ps.n %></div>
+      <div class="sub-pipeline-count"><%= count %></div>
+      <div class="sub-pipeline-name"><%= ps.name %><br><span style="font-size:0.58rem; opacity:0.7;"><%= ps.note %></span></div>
+    </div>
+    <% }) %>
+  </div>
+</div>
+
+<%# ══════════════════════════════════════════════════════════════
+    SECTION 3 — SUBMISSION VOLUME + BUSINESS STATUS
+    ══════════════════════════════════════════════════════════════ %>
+<div class="sub-2col sub-dash" style="max-width:1120px;">
+
+  <div class="card">
+    <div class="sub-header"><i class="ph ph-tag"></i> Submissions by Type</div>
+    <%
+      const codeLabels = {
+        'initial-submission':    'Initial Submission',
+        'supplement':            'Supplement / Variation',
+        'variation-type-ib':     'Type IB Variation',
+        'response-to-questions': 'Response to Questions',
+        'withdrawal':            'Withdrawal',
+        'annual-report':         'Annual / PSUR Report',
+      };
+      const codeTotal = Object.values(s.byCode).reduce((a,b)=>a+b,0) || 1;
+    %>
+    <% Object.entries(s.byCode).sort((a,b)=>b[1]-a[1]).forEach(([code, count]) => { %>
+    <div class="sub-bar-row">
+      <div class="sub-bar-label" title="<%= code %>"><%= codeLabels[code] || code %></div>
+      <div class="sub-bar-track">
+        <div class="sub-bar-fill sub-bar-fill--accent" style="width:<%= Math.round(count/codeTotal*100) %>%"></div>
+      </div>
+      <div class="sub-bar-count"><%= count %></div>
+    </div>
+    <% }) %>
+    <% if (!Object.keys(s.byCode).length) { %>
+      <div style="font-size:0.82rem; color:var(--color-text-muted);">No submission tasks found.</div>
+    <% } %>
+  </div>
+
+  <div class="card">
+    <div class="sub-header"><i class="ph ph-activity"></i> Business Status Distribution</div>
+    <% const bizTotal = Object.values(s.byBizStatus).reduce((a,b)=>a+b,0) || 1; %>
+    <% Object.entries(s.byBizStatus).sort((a,b)=>b[1]-a[1]).slice(0,10).forEach(([biz, count]) => {
+      const fillClass =
+        biz.includes('Approved')  || biz.includes('Passed')  ? 'sub-bar-fill--success' :
+        biz.includes('Rejected')  || biz.includes('Failed')  ? 'sub-bar-fill--danger'  :
+        biz.includes('Clock')     || biz.includes('Awaiting')|| biz.includes('Questions') ? 'sub-bar-fill--warning' :
+        '';
+    %>
+    <div class="sub-bar-row">
+      <div class="sub-bar-label" title="<%= biz %>"><%= biz %></div>
+      <div class="sub-bar-track">
+        <div class="sub-bar-fill <%= fillClass %>" style="width:<%= Math.round(count/bizTotal*100) %>%"></div>
+      </div>
+      <div class="sub-bar-count"><%= count %></div>
+    </div>
+    <% }) %>
+  </div>
+
+</div>
+
+<%# ══════════════════════════════════════════════════════════════
+    SECTION 4 — CTD MODULES + TIMELINESS + DOCUMENT TYPES
+    ══════════════════════════════════════════════════════════════ %>
+<div class="sub-3col sub-dash" style="max-width:1120px;">
+
+  <div class="card">
+    <div class="sub-header"><i class="ph ph-folders"></i> CTD Module Activity</div>
+    <% const modTotal = Object.values(s.byModule).reduce((a,b)=>a+b,0) || 1; %>
+    <% Object.entries(s.byModule).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([mod, count]) => { %>
+    <div class="sub-bar-row">
+      <div class="sub-bar-label" style="flex:0 0 80px;"><%= mod %></div>
+      <div class="sub-bar-track">
+        <div class="sub-bar-fill" style="width:<%= Math.round(count/modTotal*100) %>%"></div>
+      </div>
+      <div class="sub-bar-count"><%= count %></div>
+    </div>
+    <% }) %>
+    <% if (!Object.keys(s.byModule).length) { %>
+      <div style="font-size:0.82rem; color:var(--color-text-muted);">No CTD modules referenced.</div>
+    <% } %>
+    <div style="margin-top:var(--space-3); font-size:0.7rem; color:var(--color-text-light);">Input document references by CTD module</div>
+  </div>
+
+  <div class="card">
+    <div class="sub-header"><i class="ph ph-timer"></i> Timeliness Metrics</div>
+    <div style="display:flex; flex-direction:column; gap:var(--space-4);">
+      <div>
+        <div class="kv-label">Avg: Submission → Validation</div>
+        <div style="font-size:1.4rem; font-weight:800; color:var(--color-primary);">
+          <%= s.avgAcceptDays || '—' %> <span style="font-size:0.85rem; font-weight:400; color:var(--color-text-muted);">days</span>
+        </div>
+      </div>
+      <div>
+        <div class="kv-label">Avg: Question → Response</div>
+        <div style="font-size:1.4rem; font-weight:800; color:var(--color-warning, #92400e);">
+          <%= s.avgResponseDays || '—' %> <span style="font-size:0.85rem; font-weight:400; color:var(--color-text-muted);">days</span>
+        </div>
+      </div>
+      <div>
+        <div class="kv-label">Avg: Submission → Final Decision</div>
+        <div style="font-size:1.4rem; font-weight:800; color:var(--color-accent, #2d6da4);">
+          <%= s.avgDecisionDays || '—' %> <span style="font-size:0.85rem; font-weight:400; color:var(--color-text-muted);">days</span>
+        </div>
+      </div>
+      <div>
+        <div class="kv-label" style="margin-bottom:var(--space-2);">Duration Distribution</div>
+        <% s.durationBuckets.forEach(b => { %>
+          <div class="sub-bar-row" style="margin-bottom:5px;">
+            <div class="sub-bar-label" style="flex:0 0 90px; font-size:0.72rem;"><%= b.label %></div>
+            <div class="sub-bar-track">
+              <div class="sub-bar-fill sub-bar-fill--accent"
+                   style="width:<%= s.totalTasks ? Math.round(b.count/s.totalTasks*100) : 0 %>%"></div>
+            </div>
+            <div class="sub-bar-count"><%= b.count %></div>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sub-header"><i class="ph ph-file-text"></i> Document Types Filed</div>
+    <% const docTotal = Object.values(s.byDocType).reduce((a,b)=>a+b,0) || 1; %>
+    <% if (Object.keys(s.byDocType).length) { %>
+      <% Object.entries(s.byDocType).sort((a,b)=>b[1]-a[1]).slice(0,8).forEach(([type, count]) => { %>
+      <div class="sub-bar-row">
+        <div class="sub-bar-label" title="<%= type %>"><%= type.length > 20 ? type.slice(0,18)+'…' : type %></div>
+        <div class="sub-bar-track">
+          <div class="sub-bar-fill sub-bar-fill--accent" style="width:<%= Math.round(count/docTotal*100) %>%"></div>
+        </div>
+        <div class="sub-bar-count"><%= count %></div>
+      </div>
+      <% }) %>
+      <div style="margin-top:var(--space-3); font-size:0.7rem; color:var(--color-text-light);">
+        <%= s.totalDocRefs %> total DocumentReferences · avg <%= s.totalSubmissions > 0 ? (s.totalDocRefs/s.totalSubmissions).toFixed(1) : '—' %> per submission
+      </div>
+    <% } else { %>
+      <div style="font-size:0.82rem; color:var(--color-text-muted);">No documents filed yet.</div>
+    <% } %>
+  </div>
+
+</div>
+
+<%# ══════════════════════════════════════════════════════════════
+    SECTION 5 — TASKS AWAITING SUBMITTER ACTION
+    ══════════════════════════════════════════════════════════════ %>
+<% if (s.awaitingSubmitter && s.awaitingSubmitter.length > 0) { %>
+<div class="card sub-dash" style="max-width:1120px; margin-bottom:var(--space-5);">
+  <div class="card-header">
+    <div class="sub-header" style="margin-bottom:0; border-bottom:none;">
+      <i class="ph ph-warning"></i> Tasks Requiring Your Action (<%= s.awaitingSubmitter.length %>)
+    </div>
+    <span class="action-needed-badge"><i class="ph ph-clock"></i> Action Required</span>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <thead><tr>
+        <th>Task ID</th><th>Code</th><th>Business Status</th>
+        <th>Status</th><th>Product</th><th>Authored</th>
+      </tr></thead>
+      <tbody>
+        <% s.awaitingSubmitter.slice(0,20).forEach(t => {
+          const code = t.code?.coding?.[0]?.code || '—';
+          const biz  = t.businessStatus?.coding?.[0]?.display || t.businessStatus?.coding?.[0]?.code || '—';
+          const prod = t.for?.display || extractProductFromDesc(t.description) || '—';
+          const authored = t.authoredOn ? t.authoredOn.slice(0,10) : '—';
+        %>
+        <tr>
+          <td class="text-mono" style="font-size:0.78rem;"><%= t.id || '—' %></td>
+          <td style="font-size:0.8rem; font-family:var(--font-mono);"><%= code %></td>
+          <td><span class="action-needed-badge"><%= biz %></span></td>
+          <td><span class="badge badge-warning"><%= t.status || '—' %></span></td>
+          <td style="font-size:0.8rem;"><%= prod %></td>
+          <td style="font-size:0.78rem; font-family:var(--font-mono); color:var(--color-text-muted);"><%= authored %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<% } %>
+
+<%# ══════════════════════════════════════════════════════════════
+    SECTION 6 — PRODUCT-LEVEL INSIGHTS
+    ══════════════════════════════════════════════════════════════ %>
+<div class="card sub-dash" style="max-width:1120px; margin-bottom:var(--space-5);">
+  <div class="card-header">
+    <div class="sub-header" style="margin-bottom:0; border-bottom:none;">
+      <i class="ph ph-pill"></i> Product-Level Insights
+    </div>
+  </div>
+  <div class="table-wrapper">
+    <table class="sub-product-table">
+      <thead><tr>
+        <th>Product</th>
+        <th style="text-align:center;">Total Tasks</th>
+        <th style="text-align:center;">Open</th>
+        <th style="text-align:center;">Questions Pending</th>
+        <th>Status</th>
+      </tr></thead>
+      <tbody>
+        <% Object.entries(s.byProduct)
+            .sort((a,b)=>b[1].total - a[1].total)
+            .slice(0,15)
+            .forEach(([prod, data]) => { %>
+        <tr>
+          <td style="font-size:0.875rem; font-weight:600;"><%= prod %></td>
+          <td style="text-align:center;"><span class="badge badge-info"><%= data.total %></span></td>
+          <td style="text-align:center;"><span class="badge badge-neutral"><%= data.pending %></span></td>
+          <td style="text-align:center;">
+            <% if (data.questions > 0) { %>
+              <span class="action-needed-badge"><i class="ph ph-warning"></i> <%= data.questions %></span>
+            <% } else { %>
+              <span style="color:var(--color-text-light); font-size:0.8rem;">—</span>
+            <% } %>
+          </td>
+          <td>
+            <% if (data.questions > 0) { %>
+              <span style="font-size:0.78rem; color:var(--color-warning);">Action required</span>
+            <% } else if (data.pending > 0) { %>
+              <span style="font-size:0.78rem; color:var(--color-info, #1e40af);">In progress</span>
+            <% } else { %>
+              <span style="font-size:0.78rem; color:var(--color-success);">Complete</span>
+            <% } %>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%# ══════════════════════════════════════════════════════════════
+    SECTION 7 — TIMELINE VISUALIZATION (12 months)
+    ══════════════════════════════════════════════════════════════ %>
+<div class="card sub-dash" style="max-width:1120px; margin-bottom:var(--space-5);">
+  <div class="sub-header"><i class="ph ph-chart-line"></i> Submission Activity Timeline (12 months)</div>
+
+  <!-- Legend -->
+  <div style="display:flex; gap:var(--space-4); flex-wrap:wrap; margin-bottom:var(--space-3); font-size:0.78rem;">
+    <div style="display:flex; align-items:center; gap:6px;">
+      <div style="width:12px; height:12px; border-radius:50%; background:#1a3a5c;"></div>
+      Submission
+    </div>
+    <div style="display:flex; align-items:center; gap:6px;">
+      <div style="width:12px; height:12px; border-radius:50%; background:#92400e;"></div>
+      Question / Clock Stop
+    </div>
+    <div style="display:flex; align-items:center; gap:6px;">
+      <div style="width:12px; height:12px; border-radius:50%; background:#2d6da4;"></div>
+      Submitter Response
+    </div>
+    <div style="display:flex; align-items:center; gap:6px;">
+      <div style="width:12px; height:12px; border-radius:50%; background:#166534;"></div>
+      Approved
+    </div>
+    <div style="display:flex; align-items:center; gap:6px;">
+      <div style="width:12px; height:12px; border-radius:50%; background:#991b1b;"></div>
+      Rejected / Withdrawn
+    </div>
+  </div>
+
+  <div class="sub-timeline-wrap">
+    <canvas id="submitterTimeline" height="180"></canvas>
+  </div>
+</div>
+
+<%# ══════════════════════════════════════════════════════════════
+    SECTION 8 — IG REFERENCE (businessStatus → workflow)
+    ══════════════════════════════════════════════════════════════ %>
+<div class="card sub-dash" style="max-width:1120px; margin-bottom:var(--space-5);">
+  <div class="sub-header"><i class="ph ph-book-open"></i> APIX IG Reference — Submitter Workflow</div>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-5);">
+    <div>
+      <div style="font-size:0.78rem; font-weight:700; color:var(--color-primary); margin-bottom:var(--space-2);">
+        Submitter Action States
+      </div>
+      <div style="font-size:0.8rem; line-height:2.2;">
+        <span class="action-needed-badge" style="margin-right:4px;">validation-failed</span>
+        Resubmit corrected documents<br>
+        <span class="action-needed-badge" style="margin-right:4px;">questions-raised</span>
+        Prepare response<br>
+        <span class="action-needed-badge" style="margin-right:4px;">clock-stop</span>
+        Respond within deadline<br>
+        <span class="action-needed-badge" style="margin-right:4px;">awaiting-response</span>
+        Authority waiting for submitter
+      </div>
+    </div>
+    <div>
+      <div style="font-size:0.78rem; font-weight:700; color:var(--color-primary); margin-bottom:var(--space-2);">
+        Workflow Sequence (APIX IG)
+      </div>
+      <div class="sub-code-block">
+        <div class="sub-code-block-bar">APIX businessStatus → Submitter Stage</div>
+        <pre>submitted             → Stage 1: Filed, awaiting validation
+validation-passed     → Stage 2: Accepted, under assessment
+validation-failed     → Stage 2: ⚠ Action required
+under-assessment      → Stage 3: Authority review ongoing
+questions-raised      → Stage 3: ⚠ Prepare response
+clock-stop            → Stage 4: ⚠ Deadline active
+awaiting-response     → Stage 4: ⚠ Must respond
+response-received     → Stage 5: Response accepted
+assessment-resumed    → Stage 5: Review continuing
+approved              → Stage 6: ✓ Decision: Approved
+rejected              → Stage 6: ✗ Decision: Rejected
+withdrawn             → Stage 6: Application withdrawn</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% } %><%# end summary check %>
+
+<%# ── Timeline chart script ───────────────────────────────────── %>
+<script>
+(function () {
+  var canvas = document.getElementById('submitterTimeline');
+  if (!canvas) return;
+
+  var events = <%- timelineEventsJson %>;
+  if (!events || !events.length) {
+    canvas.style.display = 'none';
+    return;
+  }
+
+  /* Bucket events by month (last 12 months) */
+  var now     = Date.now();
+  var MONTHS  = 12;
+  var labels  = [];
+  var buckets = {
+    submission: new Array(MONTHS).fill(0),
+    question:   new Array(MONTHS).fill(0),
+    response:   new Array(MONTHS).fill(0),
+    approved:   new Array(MONTHS).fill(0),
+    rejected:   new Array(MONTHS).fill(0),
+  };
+
+  for (var m = MONTHS - 1; m >= 0; m--) {
+    var d = new Date(now);
+    d.setMonth(d.getMonth() - m);
+    labels.push(d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }));
+  }
+
+  events.forEach(function (e) {
+    var ts  = new Date(e.date);
+    var age = Math.floor((now - ts) / (30.44 * 86400000)); // approx months ago
+    if (age < 0 || age >= MONTHS) return;
+    var idx = MONTHS - 1 - age;
+
+    if (e.isDecision && e.biz === 'approved')   buckets.approved[idx]++;
+    else if (e.isDecision)                        buckets.rejected[idx]++;
+    else if (e.isQuestion)                        buckets.question[idx]++;
+    else if (e.code === 'response-to-questions')  buckets.response[idx]++;
+    else if (e.isSubmission)                      buckets.submission[idx]++;
+  });
+
+  /* Draw */
+  var dpr = window.devicePixelRatio || 1;
+  var W   = canvas.parentElement.clientWidth || 1000;
+  var H   = 180;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+
+  var ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  var padL = 28, padR = 12, padT = 14, padB = 38;
+  var chartW = W - padL - padR;
+  var chartH = H - padT - padB;
+
+  /* Find max stacked value */
+  var maxVal = 0;
+  for (var i = 0; i < MONTHS; i++) {
+    var tot = buckets.submission[i] + buckets.question[i] + buckets.response[i]
+            + buckets.approved[i]   + buckets.rejected[i];
+    if (tot > maxVal) maxVal = tot;
+  }
+  maxVal = Math.max(maxVal, 1);
+
+  var barW  = chartW / MONTHS * 0.72;
+  var barGap = chartW / MONTHS;
+
+  /* Grid lines */
+  ctx.strokeStyle = '#d0d7e3';
+  ctx.lineWidth   = 0.5;
+  for (var g = 0; g <= 4; g++) {
+    var y = padT + chartH - (g / 4) * chartH;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + chartW, y); ctx.stroke();
+  }
+
+  /* Stacked bars */
+  var COLORS = {
+    submission: '#1a3a5c',
+    question:   '#92400e',
+    response:   '#2d6da4',
+    approved:   '#166534',
+    rejected:   '#991b1b',
+  };
+  var STACK_ORDER = ['submission','question','response','approved','rejected'];
+
+  for (var i = 0; i < MONTHS; i++) {
+    var x        = padL + i * barGap + (barGap - barW) / 2;
+    var yBase    = padT + chartH;
+    var totalBar = 0;
+    STACK_ORDER.forEach(function (key) { totalBar += buckets[key][i]; });
+    if (totalBar === 0) {
+      // Draw x-axis label even for empty months
+      if (i % 2 === 0) {
+        ctx.fillStyle = '#7a8799';
+        ctx.font = '9px var(--font-sans, system-ui, sans-serif)';
+        ctx.textAlign = 'center';
+        ctx.fillText(labels[i], x + barW / 2, padT + chartH + 14);
+      }
+      continue;
+    }
+
+    var yOffset = 0;
+    STACK_ORDER.forEach(function (key) {
+      var val = buckets[key][i];
+      if (!val) return;
+      var bh  = (val / maxVal) * chartH;
+      var y   = yBase - yOffset - bh;
+      ctx.fillStyle = COLORS[key];
+      ctx.beginPath();
+      if (ctx.roundRect) {
+        ctx.roundRect(x, y, barW, bh, yOffset === 0 ? [0, 0, 2, 2] : [0]);
+      } else {
+        ctx.rect(x, y, barW, bh);
+      }
+      ctx.fill();
+      yOffset += bh;
+    });
+
+    /* Total label above bar */
+    if (totalBar > 0) {
+      ctx.fillStyle = '#1a3a5c';
+      ctx.font = 'bold 9px var(--font-sans, system-ui, sans-serif)';
+      ctx.textAlign = 'center';
+      ctx.fillText(totalBar, x + barW / 2, padT + chartH - yOffset - 3);
+    }
+
+    /* Month label */
+    if (i % 2 === 0) {
+      ctx.fillStyle = '#7a8799';
+      ctx.font = '9px var(--font-sans, system-ui, sans-serif)';
+      ctx.textAlign = 'center';
+      ctx.fillText(labels[i], x + barW / 2, padT + chartH + 14);
+    }
+  }
+
+  /* X-axis line */
+  ctx.strokeStyle = '#a0adbf';
+  ctx.lineWidth   = 1;
+  ctx.beginPath();
+  ctx.moveTo(padL, padT + chartH);
+  ctx.lineTo(padL + chartW, padT + chartH);
+  ctx.stroke();
+
+  /* Footer label */
+  ctx.fillStyle = '#4b5870';
+  ctx.font = '10px var(--font-sans, system-ui, sans-serif)';
+  ctx.textAlign = 'left';
+  ctx.fillText('Stacked by event type · last 12 months', padL, padT + chartH + 28);
+})();
+</script>

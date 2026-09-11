@@ -1,0 +1,689 @@
+<%#
+  views/demo/annual-report.ejs
+  Annual Reporting Dashboard — APIX IG Style
+  Data: fhirUrl, tasks (array), tasksJson (JSON string), summary (object), fetchError
+%>
+
+<style>
+/* ── APIX IG-flavoured dashboard overrides ──────────────── */
+.apix-dash { max-width: 1100px; }
+
+.apix-section-header {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-primary, #1a3a5c);
+  border-bottom: 2px solid var(--color-primary, #1a3a5c);
+  padding-bottom: var(--space-2, 8px);
+  margin-bottom: var(--space-4, 16px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.apix-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+  gap: var(--space-4, 16px);
+  margin-bottom: var(--space-6, 24px);
+}
+
+.apix-kpi {
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #d0d7e3);
+  border-top: 3px solid var(--color-primary, #1a3a5c);
+  border-radius: var(--radius-md, 6px);
+  padding: var(--space-4, 16px) var(--space-4, 16px) var(--space-3, 12px);
+  box-shadow: var(--shadow-xs);
+}
+
+.apix-kpi-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--color-primary, #1a3a5c);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.apix-kpi-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted, #4b5870);
+}
+
+.apix-kpi-sub {
+  font-size: 0.75rem;
+  color: var(--color-text-light, #7a8799);
+  margin-top: 2px;
+}
+
+.apix-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5, 20px);
+  margin-bottom: var(--space-5, 20px);
+}
+
+.apix-three-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--space-5, 20px);
+  margin-bottom: var(--space-5, 20px);
+}
+
+/* Progress bar rows */
+.apix-bar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  margin-bottom: 10px;
+  font-size: 0.82rem;
+}
+
+.apix-bar-label {
+  flex: 0 0 160px;
+  font-size: 0.78rem;
+  color: var(--color-text, #111827);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apix-bar-track {
+  flex: 1;
+  height: 8px;
+  background: var(--color-border, #d0d7e3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.apix-bar-fill {
+  height: 100%;
+  background: var(--color-primary, #1a3a5c);
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+
+.apix-bar-fill--accent  { background: var(--color-accent, #2d6da4); }
+.apix-bar-fill--success { background: var(--color-success, #166534); }
+.apix-bar-fill--warning { background: var(--color-warning, #92400e); }
+.apix-bar-fill--danger  { background: var(--color-danger, #991b1b); }
+
+.apix-bar-count {
+  flex: 0 0 32px;
+  text-align: right;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-text-muted, #4b5870);
+}
+
+/* Timeline / gantt */
+.apix-timeline-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius-md, 6px);
+  border: 1px solid var(--color-border, #d0d7e3);
+}
+
+canvas#timelineChart {
+  display: block;
+  width: 100%;
+}
+
+/* Stage flow */
+.apix-stage-flow {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin-bottom: var(--space-5, 20px);
+  border: 1px solid var(--color-border, #d0d7e3);
+  border-radius: var(--radius-md, 6px);
+  overflow: hidden;
+}
+
+.apix-stage-box {
+  flex: 1;
+  padding: var(--space-3, 12px) var(--space-2, 8px);
+  text-align: center;
+  border-right: 1px solid var(--color-border, #d0d7e3);
+  background: var(--color-surface-alt, #f6f8fa);
+  position: relative;
+}
+
+.apix-stage-box:last-child { border-right: none; }
+
+.apix-stage-box.has-tasks { background: var(--color-primary-light, #eaeff5); }
+
+.apix-stage-num {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-light, #7a8799);
+  margin-bottom: 4px;
+}
+
+.apix-stage-count {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-primary, #1a3a5c);
+  line-height: 1;
+}
+
+.apix-stage-name {
+  font-size: 0.65rem;
+  color: var(--color-text-muted, #4b5870);
+  margin-top: 4px;
+  line-height: 1.3;
+}
+
+/* IG code-block style for JSON snippets */
+.apix-code-block {
+  background: #152132;
+  border-radius: var(--radius-md, 6px);
+  overflow: hidden;
+  border: 1px solid #2a3f52;
+  margin-bottom: var(--space-4, 16px);
+}
+
+.apix-code-block-bar {
+  background: #12202e;
+  padding: 6px 14px;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.apix-code-block pre {
+  margin: 0;
+  padding: var(--space-4, 16px);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.78rem;
+  line-height: 1.7;
+  color: #b8cfe0;
+  overflow-x: auto;
+  max-height: 280px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* Empty state */
+.apix-empty {
+  text-align: center;
+  padding: var(--space-12, 48px) var(--space-8, 32px);
+  color: var(--color-text-muted, #4b5870);
+}
+
+.apix-empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: var(--space-4, 16px);
+  color: var(--color-text-light, #7a8799);
+}
+
+@media (max-width: 760px) {
+  .apix-two-col, .apix-three-col { grid-template-columns: 1fr; }
+  .apix-stage-flow { flex-wrap: wrap; }
+  .apix-stage-box { flex: 0 0 33.33%; }
+}
+</style>
+
+<%# ── Page header ───────────────────────────────────────────── %>
+<div class="page-header apix-dash" style="max-width:1100px;">
+  <div class="page-title">
+    <i class="ph ph-chart-bar"></i> Annual Regulatory Reporting Dashboard
+  </div>
+  <div class="page-subtitle">
+    APIX HL7 FHIR R5 · Workflow analytics across all active regulatory procedures
+    <% if (fhirUrl) { %>
+      · <span class="text-mono" style="font-size:0.78rem;"><%= fhirUrl %></span>
+    <% } %>
+  </div>
+</div>
+
+<%# ── FHIR URL picker if missing ────────────────────────────── %>
+<% if (!fhirUrl) { %>
+<div class="card apix-dash" style="max-width:600px; margin-bottom:var(--space-5);">
+  <div class="card-header"><div class="card-title"><i class="ph ph-link"></i> Connect to FHIR Server</div></div>
+  <form method="GET" action="/demo/annual-report">
+    <label>FHIR Base URL
+      <input name="fhirUrl" placeholder="https://your-fhir-server.org/fhir" required>
+    </label>
+    <div><button type="submit"><i class="ph ph-magnifying-glass"></i> Load Tasks</button></div>
+  </form>
+</div>
+<% } %>
+
+<%# ── Error state ───────────────────────────────────────────── %>
+<% if (fetchError) { %>
+<div class="alert alert-danger apix-dash" style="max-width:1100px;">
+  <i class="ph ph-warning-circle"></i>
+  <div><strong>Could not fetch Tasks from FHIR server.</strong><br><span style="font-size:0.82rem;"><%= fetchError %></span></div>
+</div>
+<% } %>
+
+<%# ── Empty state ───────────────────────────────────────────── %>
+<% if (!tasks || tasks.length === 0) { %>
+<div class="card apix-dash" style="max-width:1100px;">
+  <div class="apix-empty">
+    <div class="apix-empty-icon"><i class="ph ph-database"></i></div>
+    <div style="font-size:1rem; font-weight:600; margin-bottom:var(--space-2);">No Tasks found</div>
+    <div style="font-size:0.85rem; margin-bottom:var(--space-5);">Generate demo Tasks first, or check your FHIR server URL.</div>
+    <div style="display:flex; gap:var(--space-3); justify-content:center;">
+      <a href="/demo/generate<%= fhirUrl ? '?fhirUrl=' + encodeURIComponent(fhirUrl) : '' %>" class="btn btn-primary">
+        <i class="ph ph-flask"></i> Generate Demo Tasks
+      </a>
+    </div>
+  </div>
+</div>
+<% } else { %>
+
+<% const s = summary; %>
+
+<%# ── KPI strip ──────────────────────────────────────────────── %>
+<div class="apix-kpi-grid apix-dash">
+  <div class="apix-kpi">
+    <div class="apix-kpi-value"><%= s.total %></div>
+    <div class="apix-kpi-label">Total Tasks</div>
+    <div class="apix-kpi-sub">All procedures</div>
+  </div>
+  <div class="apix-kpi" style="border-top-color:var(--color-success,#166534);">
+    <div class="apix-kpi-value" style="color:var(--color-success,#166534);"><%= s.completedCount %></div>
+    <div class="apix-kpi-label">Completed</div>
+    <div class="apix-kpi-sub">Final decisions</div>
+  </div>
+  <div class="apix-kpi" style="border-top-color:var(--color-warning,#92400e);">
+    <div class="apix-kpi-value" style="color:var(--color-warning,#92400e);"><%= s.inProgressCount %></div>
+    <div class="apix-kpi-label">In Progress</div>
+    <div class="apix-kpi-sub">Under assessment</div>
+  </div>
+  <div class="apix-kpi" style="border-top-color:var(--color-info,#1e40af);">
+    <div class="apix-kpi-value" style="color:var(--color-info,#1e40af);"><%= s.requestedCount %></div>
+    <div class="apix-kpi-label">Awaiting Action</div>
+    <div class="apix-kpi-sub">Clock-stop / pending</div>
+  </div>
+  <div class="apix-kpi">
+    <div class="apix-kpi-value"><%= s.avgTurnaroundDays %></div>
+    <div class="apix-kpi-label">Avg Days</div>
+    <div class="apix-kpi-sub">Turnaround time</div>
+  </div>
+  <div class="apix-kpi">
+    <div class="apix-kpi-value"><%= s.submitterTasks %></div>
+    <div class="apix-kpi-label">Submitter Tasks</div>
+    <div class="apix-kpi-sub">Company-initiated</div>
+  </div>
+  <div class="apix-kpi">
+    <div class="apix-kpi-value"><%= s.authorityTasks %></div>
+    <div class="apix-kpi-label">Authority Tasks</div>
+    <div class="apix-kpi-sub">Regulator-initiated</div>
+  </div>
+</div>
+
+<%# ── Workflow stage flow ────────────────────────────────────── %>
+<div class="card apix-dash" style="max-width:1100px; margin-bottom:var(--space-5);">
+  <div class="apix-section-header"><i class="ph ph-path"></i> Regulatory Workflow Stage Distribution</div>
+  <div class="apix-stage-flow">
+    <%
+      const stageNames = {
+        1: 'Submitted',
+        2: 'Validation',
+        3: 'Under Assessment',
+        4: 'Clock Stop',
+        5: 'Response Review',
+        6: 'Final Decision',
+      };
+    %>
+    <% for (let st = 1; st <= 6; st++) { %>
+    <div class="apix-stage-box <%= (s.byStage[st] || 0) > 0 ? 'has-tasks' : '' %>">
+      <div class="apix-stage-num">Stage <%= st %></div>
+      <div class="apix-stage-count"><%= s.byStage[st] || 0 %></div>
+      <div class="apix-stage-name"><%= stageNames[st] %></div>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<%# ── Two-column: businessStatus + FHIR status ─────────────── %>
+<div class="apix-two-col apix-dash" style="max-width:1100px;">
+
+  <div class="card">
+    <div class="apix-section-header"><i class="ph ph-activity"></i> Business Status Distribution</div>
+    <% const bizTotal = Object.values(s.byBizStatus).reduce((a,b)=>a+b,0) || 1; %>
+    <% Object.entries(s.byBizStatus).sort((a,b)=>b[1]-a[1]).forEach(([status, count]) => { %>
+    <div class="apix-bar-row">
+      <div class="apix-bar-label" title="<%= status %>"><%= status %></div>
+      <div class="apix-bar-track">
+        <div class="apix-bar-fill <%=
+          status.includes('Approved') || status.includes('Passed') ? 'apix-bar-fill--success' :
+          status.includes('Rejected') || status.includes('Failed') ? 'apix-bar-fill--danger' :
+          status.includes('Clock') || status.includes('Awaiting')  ? 'apix-bar-fill--warning' :
+          'apix-bar-fill--accent'
+        %>" style="width:<%= Math.round(count/bizTotal*100) %>%"></div>
+      </div>
+      <div class="apix-bar-count"><%= count %></div>
+    </div>
+    <% }) %>
+  </div>
+
+  <div class="card">
+    <div class="apix-section-header"><i class="ph ph-list-checks"></i> FHIR Task Status</div>
+    <% const fhirTotal = Object.values(s.byFhirStatus).reduce((a,b)=>a+b,0) || 1; %>
+    <% Object.entries(s.byFhirStatus).sort((a,b)=>b[1]-a[1]).forEach(([status, count]) => { %>
+    <div class="apix-bar-row">
+      <div class="apix-bar-label"><%= status %></div>
+      <div class="apix-bar-track">
+        <div class="apix-bar-fill <%=
+          status === 'completed'   ? 'apix-bar-fill--success' :
+          status === 'in-progress' ? 'apix-bar-fill--warning' :
+          status === 'rejected'    ? 'apix-bar-fill--danger'  :
+          'apix-bar-fill--accent'
+        %>" style="width:<%= Math.round(count/fhirTotal*100) %>%"></div>
+      </div>
+      <div class="apix-bar-count"><%= count %></div>
+    </div>
+    <% }) %>
+  </div>
+
+</div>
+
+<%# ── Three-column: task code + CTD modules + submitters ────── %>
+<div class="apix-three-col apix-dash" style="max-width:1100px;">
+
+  <div class="card">
+    <div class="apix-section-header"><i class="ph ph-tag"></i> By Task Code</div>
+    <% const codeTotal = Object.values(s.byCode).reduce((a,b)=>a+b,0) || 1; %>
+    <% Object.entries(s.byCode).sort((a,b)=>b[1]-a[1]).forEach(([code, count]) => { %>
+    <div class="apix-bar-row">
+      <div class="apix-bar-label" style="flex:0 0 130px; font-family:var(--font-mono,monospace); font-size:0.72rem;" title="<%= code %>"><%= code.replace('variation-type-ib','var-type-ib') %></div>
+      <div class="apix-bar-track">
+        <div class="apix-bar-fill" style="width:<%= Math.round(count/codeTotal*100) %>%"></div>
+      </div>
+      <div class="apix-bar-count"><%= count %></div>
+    </div>
+    <% }) %>
+  </div>
+
+  <div class="card">
+    <div class="apix-section-header"><i class="ph ph-folders"></i> CTD Module Activity</div>
+    <% const modTotal = Object.values(s.byModule).reduce((a,b)=>a+b,0) || 1; %>
+    <% Object.entries(s.byModule).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([mod, count]) => { %>
+    <div class="apix-bar-row">
+      <div class="apix-bar-label" style="flex:0 0 80px;"><%= mod %></div>
+      <div class="apix-bar-track">
+        <div class="apix-bar-fill apix-bar-fill--accent" style="width:<%= Math.round(count/modTotal*100) %>%"></div>
+      </div>
+      <div class="apix-bar-count"><%= count %></div>
+    </div>
+    <% }) %>
+    <div style="margin-top:var(--space-3); font-size:0.72rem; color:var(--color-text-light);">
+      Input document references by CTD module
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="apix-section-header"><i class="ph ph-buildings"></i> By Submitter</div>
+    <% const subTotal = Object.values(s.bySubmitter).reduce((a,b)=>a+b,0) || 1; %>
+    <% Object.entries(s.bySubmitter).sort((a,b)=>b[1]-a[1]).forEach(([org, count]) => { %>
+    <div class="apix-bar-row">
+      <div class="apix-bar-label" style="flex:0 0 120px; font-size:0.75rem;" title="<%= org %>"><%= org.length > 16 ? org.slice(0,14)+'…' : org %></div>
+      <div class="apix-bar-track">
+        <div class="apix-bar-fill apix-bar-fill--accent" style="width:<%= Math.round(count/subTotal*100) %>%"></div>
+      </div>
+      <div class="apix-bar-count"><%= count %></div>
+    </div>
+    <% }) %>
+  </div>
+
+</div>
+
+<%# ── Timeline (canvas, client-side) ────────────────────────── %>
+<div class="card apix-dash" style="max-width:1100px; margin-bottom:var(--space-5);">
+  <div class="apix-section-header"><i class="ph ph-chart-line"></i> Task Activity Timeline (14-day window)</div>
+  <div class="apix-timeline-wrap">
+    <canvas id="timelineChart" height="160"></canvas>
+  </div>
+</div>
+
+<%# ── Recent tasks table ─────────────────────────────────────── %>
+<div class="card apix-dash" style="max-width:1100px; margin-bottom:var(--space-5);">
+  <div class="card-header">
+    <div class="apix-section-header" style="margin-bottom:0; border-bottom:none;">
+      <i class="ph ph-list-bullets"></i> Recent Tasks (<%= Math.min(tasks.length, 30) %> of <%= tasks.length %>)
+    </div>
+    <a href="/demo/generate?fhirUrl=<%= encodeURIComponent(fhirUrl) %>" class="action-btn btn-ghost">
+      <i class="ph ph-flask"></i> Generate More
+    </a>
+  </div>
+  <%# D-002: inject all visible task JSON into a script block so onclick handlers %>
+  <%# never embed JSON.stringify() inside an HTML attribute. %>
+  <script>var _demoTasks = <%- JSON.stringify(tasks.slice(0, 30)) %>;</script>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Task ID</th>
+          <th>Code</th>
+          <th>Business Status</th>
+          <th>Status</th>
+          <th>Drug / Procedure</th>
+          <th>Requester</th>
+          <th>Last Modified</th>
+          <th>JSON</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% tasks.slice(0, 30).forEach((t, tIdx) => {
+          const code    = t.code?.coding?.[0]?.code || '—';
+          const biz     = t.businessStatus?.coding?.[0]?.display || '—';
+          const fhir    = t.status || '—';
+          const desc    = t.description || '—';
+          const req     = t.requester?.display || '—';
+          const lm      = t.meta?.lastUpdated ? t.meta.lastUpdated.slice(0,10) : '—';
+          const bizCls  =
+            biz.includes('Approved') || biz.includes('Passed')     ? 'badge-success' :
+            biz.includes('Rejected') || biz.includes('Failed')     ? 'badge-danger'  :
+            biz.includes('Clock')    || biz.includes('Awaiting')   ? 'badge-warning' :
+            'badge-info';
+          const fhirCls =
+            fhir === 'completed'   ? 'badge-success' :
+            fhir === 'in-progress' ? 'badge-warning' :
+            fhir === 'rejected'    ? 'badge-danger'  : 'badge-info';
+        %>
+        <tr>
+          <td class="text-mono" style="font-size:0.75rem;"><%= t.id %></td>
+          <td style="font-family:var(--font-mono,monospace); font-size:0.75rem;"><%= code %></td>
+          <td><span class="badge <%= bizCls %>"><%= biz %></span></td>
+          <td><span class="badge <%= fhirCls %>"><%= fhir %></span></td>
+          <td style="font-size:0.8rem; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="<%= desc %>">
+            <%= desc.length > 38 ? desc.slice(0,36)+'…' : desc %>
+          </td>
+          <td style="font-size:0.8rem;"><%= req %></td>
+          <td style="font-size:0.78rem; font-family:var(--font-mono,monospace); color:var(--color-text-muted);"><%= lm %></td>
+          <td>
+            <button class="action-btn btn-ghost" onclick="openJsonModal(
+              _demoTasks[<%= tIdx %>],
+              'Task/<%= t.id %>',
+              { fetchUrl: '<%= fhirUrl.replace(/\/+$/, '') %>/Task/<%= t.id %>', resourceType: 'Task' })">
+              <i class="ph ph-code"></i>
+            </button>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%# ── IG Reference panel ─────────────────────────────────────── %>
+<div class="card apix-dash" style="max-width:1100px; margin-bottom:var(--space-5);">
+  <div class="apix-section-header"><i class="ph ph-book-open"></i> APIX IG Reference — Workflow Model</div>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-5);">
+    <div>
+      <div style="font-size:0.78rem; font-weight:700; color:var(--color-primary); margin-bottom:var(--space-2);">businessStatus Progression</div>
+      <div style="font-size:0.8rem; line-height:2; color:var(--color-text-muted);">
+        <span class="badge badge-info" style="display:inline-block; margin-bottom:4px;">submitted</span>
+        <span style="margin:0 4px; color:var(--color-text-light);">→</span>
+        <span class="badge badge-info" style="display:inline-block; margin-bottom:4px;">validation-in-progress</span>
+        <span style="margin:0 4px; color:var(--color-text-light);">→</span>
+        <span class="badge badge-success" style="display:inline-block; margin-bottom:4px;">validation-passed</span>
+        <br>
+        <span class="badge badge-warning" style="display:inline-block; margin-bottom:4px;">under-assessment</span>
+        <span style="margin:0 4px; color:var(--color-text-light);">→</span>
+        <span class="badge badge-warning" style="display:inline-block; margin-bottom:4px;">questions-raised</span>
+        <br>
+        <span class="badge badge-warning" style="display:inline-block; margin-bottom:4px;">clock-stop</span>
+        <span style="margin:0 4px; color:var(--color-text-light);">→</span>
+        <span class="badge badge-info" style="display:inline-block; margin-bottom:4px;">response-received</span>
+        <br>
+        <span class="badge badge-success" style="display:inline-block; margin-bottom:4px;">approved</span>
+        <span style="margin:0 8px; color:var(--color-text-light);">/</span>
+        <span class="badge badge-danger" style="display:inline-block; margin-bottom:4px;">rejected</span>
+        <span style="margin:0 8px; color:var(--color-text-light);">/</span>
+        <span class="badge badge-neutral" style="display:inline-block; margin-bottom:4px;">withdrawn</span>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:0.78rem; font-weight:700; color:var(--color-primary); margin-bottom:var(--space-2);">Task Code → Role</div>
+      <div class="apix-code-block">
+        <div class="apix-code-block-bar">
+          <span>APIX Task Codes (CodeSystem-apix-task-code)</span>
+        </div>
+        <pre>Submitter-initiated:
+  initial-submission       → variation-type-ib
+  supplement               → response-to-questions
+  annual-report            → withdrawal
+
+Authority-initiated:
+  information-request      → validation-report
+  approval                 → rejection
+  request-payment</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% } %><%# end tasks.length %>
+
+<%# ── Client-side timeline chart ────────────────────────────── %>
+<script>
+(function () {
+  const canvas = document.getElementById('timelineChart');
+  if (!canvas) return;
+
+  const tasks = <%- tasksJson %>;
+  if (!tasks || !tasks.length) { canvas.style.display = 'none'; return; }
+
+  // Bucket tasks by day within the last 14 days
+  const now   = Date.now();
+  const winMs = 14 * 24 * 60 * 60 * 1000;
+  const days  = 14;
+  const buckets = new Array(days).fill(0);
+  const labels  = [];
+
+  for (let d = days - 1; d >= 0; d--) {
+    const dt = new Date(now - d * 86400000);
+    labels.push(dt.toLocaleDateString('en-GB', { month: 'short', day: 'numeric' }));
+  }
+
+  for (const t of tasks) {
+    const ts = t.authoredOn || t.meta?.lastUpdated;
+    if (!ts) continue;
+    const age = Math.floor((now - new Date(ts)) / 86400000);
+    if (age >= 0 && age < days) {
+      buckets[days - 1 - age]++;
+    }
+  }
+
+  const maxVal = Math.max(...buckets, 1);
+
+  // Draw
+  const dpr = window.devicePixelRatio || 1;
+  const W   = canvas.parentElement.clientWidth || 900;
+  const H   = 160;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const padL = 32, padR = 16, padT = 12, padB = 36;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+  const barW   = chartW / days * 0.7;
+  const barGap = chartW / days;
+
+  // Grid lines
+  ctx.strokeStyle = '#d0d7e3';
+  ctx.lineWidth   = 0.5;
+  for (let g = 0; g <= 4; g++) {
+    const y = padT + chartH - (g / 4) * chartH;
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(padL + chartW, y);
+    ctx.stroke();
+    if (g > 0) {
+      ctx.fillStyle = '#7a8799';
+      ctx.font = '9px var(--font-mono, monospace)';
+      ctx.textAlign = 'right';
+      ctx.fillText(Math.round(maxVal * g / 4), padL - 4, y + 3);
+    }
+  }
+
+  // Bars
+  for (let i = 0; i < days; i++) {
+    const x   = padL + i * barGap + (barGap - barW) / 2;
+    const val = buckets[i];
+    const bh  = (val / maxVal) * chartH;
+    const y   = padT + chartH - bh;
+
+    // Gradient fill
+    const grad = ctx.createLinearGradient(0, y, 0, padT + chartH);
+    grad.addColorStop(0,   'rgba(26, 58, 92, 0.85)');
+    grad.addColorStop(1,   'rgba(26, 58, 92, 0.25)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.roundRect(x, y, barW, bh, [2, 2, 0, 0]);
+    ctx.fill();
+
+    // Count label
+    if (val > 0) {
+      ctx.fillStyle = '#1a3a5c';
+      ctx.font = 'bold 9px var(--font-sans, system-ui, sans-serif)';
+      ctx.textAlign = 'center';
+      ctx.fillText(val, x + barW / 2, y - 3);
+    }
+
+    // Date label (every 2nd to avoid crowding)
+    if (i % 2 === 0) {
+      ctx.fillStyle = '#7a8799';
+      ctx.font = '9px var(--font-sans, system-ui, sans-serif)';
+      ctx.textAlign = 'center';
+      ctx.fillText(labels[i], x + barW / 2, padT + chartH + 14);
+    }
+  }
+
+  // X-axis
+  ctx.strokeStyle = '#a0adbf';
+  ctx.lineWidth   = 1;
+  ctx.beginPath();
+  ctx.moveTo(padL, padT + chartH);
+  ctx.lineTo(padL + chartW, padT + chartH);
+  ctx.stroke();
+
+  // Legend
+  ctx.fillStyle = '#4b5870';
+  ctx.font = '10px var(--font-sans, system-ui, sans-serif)';
+  ctx.textAlign = 'left';
+  ctx.fillText('Tasks authored per day (last 14 days)', padL, padT + chartH + 28);
+})();
+</script>

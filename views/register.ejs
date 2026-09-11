@@ -1,0 +1,212 @@
+<div class="page-header">
+  <h1 class="page-title"><i class="ph ph-buildings" style="color:var(--color-primary)"></i> Register Organization</h1>
+  <p class="page-subtitle">Search for an existing Organization on the FHIR server, or create a new one.</p>
+</div>
+
+<div class="form-section">
+  <h3><i class="ph ph-magnifying-glass"></i> Search FHIR Server</h3>
+  <form method="POST" action="/register/search-org">
+    <label>
+      FHIR Server URL
+      <input name="fhirUrl" value="<%= fhirUrl %>" required placeholder="https://your-fhir-server.org/fhir">
+    </label>
+    <label>
+      Organization Name
+      <input name="orgName" value="<%= orgName %>" required placeholder="My Pharma Inc.">
+    </label>
+
+    <details id="auth-details-search" style="margin-top:var(--space-3);">
+      <summary style="cursor:pointer; font-weight:600; color:var(--color-text-muted); font-size:0.875rem; user-select:none; display:flex; align-items:center; gap:0.4rem; list-style:none;">
+        <i class="ph ph-lock-key"></i> Authentication <span style="font-weight:400; margin-left:0.25rem;">(optional)</span>
+      </summary>
+      <div style="margin-top:var(--space-3); padding:var(--space-3); border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-bg-subtle);">
+        <label>
+          Auth Type
+          <select name="fhirAuthType" onchange="updateAuthFields(this.closest('form'))">
+            <option value="none"   <%= (locals.fhirAuthType||'none')==='none'   ? 'selected' : '' %>>None</option>
+            <option value="apikey" <%= (locals.fhirAuthType||'')==='apikey' ? 'selected' : '' %>>API Subscription Key</option>
+            <option value="bearer" <%= (locals.fhirAuthType||'')==='bearer' ? 'selected' : '' %>>Bearer Token</option>
+            <option value="custom" <%= (locals.fhirAuthType||'')==='custom' ? 'selected' : '' %>>Custom Header</option>
+          </select>
+        </label>
+        <div class="auth-apikey-field" style="display:none;">
+          <label>
+            Subscription Key <span style="font-size:0.78rem; color:var(--color-text-muted);">(Ocp-Apim-Subscription-Key)</span>
+            <input type="password" name="fhirApiKey" value="<%= locals.fhirApiKey||'' %>" placeholder="your-api-key" autocomplete="off">
+          </label>
+        </div>
+        <div class="auth-bearer-field" style="display:none;">
+          <label>
+            Bearer Token
+            <input type="password" name="fhirBearerToken" value="<%= locals.fhirBearerToken||'' %>" placeholder="your-token" autocomplete="off">
+          </label>
+        </div>
+        <div class="auth-custom-field" style="display:none;">
+          <label>
+            Header Name
+            <input name="fhirCustomHeaderName" value="<%= locals.fhirCustomHeaderName||'' %>" placeholder="X-Custom-Header">
+          </label>
+          <label>
+            Header Value
+            <input type="password" name="fhirCustomHeaderValue" value="<%= locals.fhirCustomHeaderValue||'' %>" placeholder="value" autocomplete="off">
+          </label>
+        </div>
+      </div>
+    </details>
+
+    <div style="margin-top:var(--space-4);">
+      <button type="submit"><i class="ph ph-magnifying-glass"></i> Search</button>
+    </div>
+  </form>
+</div>
+
+<% if (typeof orgResults !== 'undefined' && orgResults.length > 0) { %>
+<div class="card mt-4">
+  <div class="card-header">
+    <div class="card-title"><i class="ph ph-check-circle"></i> Organizations Found</div>
+    <span class="badge badge-success"><%= orgResults.length %> found</span>
+  </div>
+
+  <form method="POST" action="/register/complete">
+    <input type="hidden" name="fhirUrl" value="<%= fhirUrl %>">
+    <input type="hidden" name="mode"    value="use-existing">
+    <%# Carry auth config so /register/complete can persist it to session %>
+    <input type="hidden" name="fhirAuthType"        value="<%= locals.fhirAuthType||'none' %>">
+    <input type="hidden" name="fhirApiKey"           value="<%= locals.fhirApiKey||'' %>">
+    <input type="hidden" name="fhirBearerToken"      value="<%= locals.fhirBearerToken||'' %>">
+    <input type="hidden" name="fhirCustomHeaderName" value="<%= locals.fhirCustomHeaderName||'' %>">
+    <input type="hidden" name="fhirCustomHeaderValue" value="<%= locals.fhirCustomHeaderValue||'' %>">
+    <% orgResults.forEach(r => { %>
+      <input type="hidden" name="endpointByOrg[<%= r.org.id %>]" value="<%= r.endpoint ? r.endpoint.id : '' %>">
+      <input type="hidden" name="orgNameByOrg[<%= r.org.id %>]"  value="<%= r.org.name %>">
+    <% }) %>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:2rem;"></th>
+            <th>Name</th>
+            <th>Identifier</th>
+            <th>FHIR ID</th>
+            <th>Endpoint</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% orgResults.forEach((r, i) => { %>
+          <tr>
+            <td><input type="radio" name="orgId" value="<%= r.org.id %>" <%= i === 0 ? 'checked' : '' %> required></td>
+            <td><strong style="font-size:0.875rem;"><%= r.org.name %></strong></td>
+            <td style="font-size:0.78rem; color:var(--color-text-muted);">
+              <% if (r.org.identifier && r.org.identifier[0]) { %>
+                <span class="text-mono"><%= r.org.identifier[0].system %></span><br>
+                <strong><%= r.org.identifier[0].value %></strong>
+              <% } else { %>
+                <span style="color:var(--color-text-muted);">—</span>
+              <% } %>
+            </td>
+            <td class="text-mono" style="font-size:0.78rem;"><%= r.org.id %></td>
+            <td style="font-size:0.78rem;">
+              <% if (r.endpoint) { %>
+                <span class="badge badge-success"><i class="ph ph-check"></i> <%= r.endpoint.address %></span>
+              <% } else { %>
+                <span class="badge badge-warning"><i class="ph ph-warning"></i> None found</span>
+              <% } %>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:var(--space-4);">
+      <button type="submit" class="btn-accent"><i class="ph ph-arrow-right"></i> Use Selected Organization</button>
+    </div>
+  </form>
+</div>
+<% } else if (typeof orgResults !== 'undefined' && orgResults.length === 0) { %>
+<div class="alert alert-warning mt-4">
+  <i class="ph ph-warning"></i> No organization found matching that name. Try a different name or create a new one below.
+</div>
+<% } %>
+
+<div class="form-section mt-4">
+  <h3><i class="ph ph-plus-circle"></i> Create New Organization</h3>
+  <form method="POST" action="/register/complete">
+    <input type="hidden" name="mode" value="create-new">
+    <label>
+      FHIR Server URL
+      <input name="fhirUrl" value="<%= fhirUrl %>" required placeholder="https://your-fhir-server.org/fhir">
+    </label>
+    <label>
+      Organization Name
+      <input name="orgName" value="<%= orgName %>" required placeholder="My Pharma Inc.">
+    </label>
+    <label>
+      Endpoint Address
+      <input name="endpointAddress" placeholder="https://example.org/fhir-endpoint" required>
+    </label>
+
+    <details id="auth-details-create" style="margin-top:var(--space-3);">
+      <summary style="cursor:pointer; font-weight:600; color:var(--color-text-muted); font-size:0.875rem; user-select:none; display:flex; align-items:center; gap:0.4rem; list-style:none;">
+        <i class="ph ph-lock-key"></i> Authentication <span style="font-weight:400; margin-left:0.25rem;">(optional)</span>
+      </summary>
+      <div style="margin-top:var(--space-3); padding:var(--space-3); border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-bg-subtle);">
+        <label>
+          Auth Type
+          <select name="fhirAuthType" onchange="updateAuthFields(this.closest('form'))">
+            <option value="none"   <%= (locals.fhirAuthType||'none')==='none'   ? 'selected' : '' %>>None</option>
+            <option value="apikey" <%= (locals.fhirAuthType||'')==='apikey' ? 'selected' : '' %>>API Subscription Key</option>
+            <option value="bearer" <%= (locals.fhirAuthType||'')==='bearer' ? 'selected' : '' %>>Bearer Token</option>
+            <option value="custom" <%= (locals.fhirAuthType||'')==='custom' ? 'selected' : '' %>>Custom Header</option>
+          </select>
+        </label>
+        <div class="auth-apikey-field" style="display:none;">
+          <label>
+            Subscription Key <span style="font-size:0.78rem; color:var(--color-text-muted);">(Ocp-Apim-Subscription-Key)</span>
+            <input type="password" name="fhirApiKey" value="<%= locals.fhirApiKey||'' %>" placeholder="your-api-key" autocomplete="off">
+          </label>
+        </div>
+        <div class="auth-bearer-field" style="display:none;">
+          <label>
+            Bearer Token
+            <input type="password" name="fhirBearerToken" value="<%= locals.fhirBearerToken||'' %>" placeholder="your-token" autocomplete="off">
+          </label>
+        </div>
+        <div class="auth-custom-field" style="display:none;">
+          <label>
+            Header Name
+            <input name="fhirCustomHeaderName" value="<%= locals.fhirCustomHeaderName||'' %>" placeholder="X-Custom-Header">
+          </label>
+          <label>
+            Header Value
+            <input type="password" name="fhirCustomHeaderValue" value="<%= locals.fhirCustomHeaderValue||'' %>" placeholder="value" autocomplete="off">
+          </label>
+        </div>
+      </div>
+    </details>
+
+    <div style="margin-top:var(--space-4);">
+      <button type="submit"><i class="ph ph-buildings"></i> Create New Organization</button>
+    </div>
+  </form>
+</div>
+
+<script>
+function updateAuthFields(form) {
+  const type = form.querySelector('[name="fhirAuthType"]')?.value || 'none';
+  form.querySelectorAll('.auth-apikey-field').forEach(el => el.style.display = type === 'apikey' ? '' : 'none');
+  form.querySelectorAll('.auth-bearer-field').forEach(el => el.style.display = type === 'bearer' ? '' : 'none');
+  form.querySelectorAll('.auth-custom-field').forEach(el => el.style.display = type === 'custom' ? '' : 'none');
+}
+
+// On page load: show correct fields and auto-open <details> if auth is configured
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('form').forEach(f => updateAuthFields(f));
+
+  const authType = '<%= locals.fhirAuthType || "none" %>';
+  if (authType !== 'none') {
+    document.querySelectorAll('details[id^="auth-details"]').forEach(d => d.open = true);
+  }
+});
+</script>

@@ -1,0 +1,61 @@
+<div class="page-header">
+  <h1 class="page-title"><i class="ph ph-clipboard-text" style="color:var(--color-primary)"></i> Answer Questionnaire</h1>
+  <p class="page-subtitle"><%= questionnaire.title %></p>
+</div>
+
+<div class="form-section">
+  <form method="POST" action="/authority-task/<%= taskId %>/submit-questionnaire" class="form-wide">
+    <input type="hidden" name="fhirServer" value="<%= fhirServer %>">
+    <input type="hidden" name="questionnaireUrl" value="<%= questionnaire.url || questionnaireRef %>">
+
+    <% function renderItem(item, depth) { %>
+      <div class="<%= item.type === 'group' ? 'q-group' : 'q-item' %>" style="margin-left:<%= depth * 16 %>px;">
+        <% if (item.text) { %>
+          <label>
+            <%= item.text %>
+            <input type="hidden" name="qtext_<%= item.linkId %>" value="<%= item.text %>">
+          </label>
+        <% } %>
+
+        <% if (item.type === 'group') { %>
+          <% (item.item || []).forEach(child => renderItem(child, depth + 1)); %>
+        <% } %>
+
+        <% if (item.type === 'string' || item.type === 'text' || item.type === 'question') { %>
+          <input type="text" name="q_<%= item.linkId %>" placeholder="Enter answer...">
+        <% } %>
+
+        <% if (item.type === 'integer') { %>
+          <input type="number" name="q_<%= item.linkId %>">
+        <% } %>
+
+        <% if (item.type === 'boolean') { %>
+          <label class="check-label" style="flex-direction:row; align-items:center; gap:var(--space-2); margin-top:var(--space-2);">
+            <input type="checkbox" name="q_<%= item.linkId %>" value="true">
+            Yes
+          </label>
+        <% } %>
+
+        <% if (item.type === 'date') { %>
+          <input type="date" name="q_<%= item.linkId %>">
+        <% } %>
+
+        <% if (item.type === 'choice') { %>
+          <select name="q_<%= item.linkId %>">
+            <% (item.answerOption || []).forEach(opt => { %>
+              <option value="<%= opt.valueCoding.code %>|<%= opt.valueCoding.display %>">
+                <%= opt.valueCoding.display %>
+              </option>
+            <% }) %>
+          </select>
+        <% } %>
+      </div>
+    <% } %>
+
+    <% (questionnaire.item || []).forEach(i => renderItem(i, 0)); %>
+
+    <div>
+      <button type="submit"><i class="ph ph-paper-plane-tilt"></i> Submit Questionnaire</button>
+    </div>
+  </form>
+</div>

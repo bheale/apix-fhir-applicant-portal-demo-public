@@ -1,0 +1,31 @@
+<div class="card">
+  <div class="success-card">
+    <div class="success-icon">
+      <i class="ph ph-flag-checkered"></i>
+    </div>
+    <div class="success-title">Task Completed</div>
+    <div class="success-body">Your completion update has been sent to the FHIR server.</div>
+
+    <div class="kv-grid" style="text-align:left; max-width:480px; margin:0 auto var(--space-6);">
+      <div class="kv-item">
+        <div class="kv-label">Task ID</div>
+        <div class="kv-value mono"><%= taskId %></div>
+      </div>
+      <div class="kv-item">
+        <div class="kv-label">Status</div>
+        <div class="kv-value">
+          <span class="badge <%= status === 'completed' ? 'badge-success' : 'badge-info' %>"><%= status %></span>
+        </div>
+      </div>
+      <div class="kv-item" style="grid-column:1/-1;">
+        <div class="kv-label">FHIR Server</div>
+        <div class="kv-value mono" style="font-size:0.8rem; word-break:break-all;"><%= fhirServer %></div>
+      </div>
+    </div>
+
+    <div class="flex gap-3" style="justify-content:center;">
+      <a href="/authority-tasks" class="btn btn-primary"><i class="ph ph-shield-check"></i> Return to Authority Tasks</a>
+      <a href="/" class="btn btn-ghost"><i class="ph ph-house"></i> Home</a>
+    </div>
+  </div>
+</div>

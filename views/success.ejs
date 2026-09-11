@@ -1,0 +1,25 @@
+<div class="card">
+  <div class="success-card">
+    <div class="success-icon">
+      <i class="ph ph-check-fat"></i>
+    </div>
+    <div class="success-title">Registration Successful</div>
+    <div class="success-body">Your Organization and Endpoint have been registered on the FHIR server.</div>
+
+    <div class="kv-grid" style="text-align:left; max-width:400px; margin:0 auto var(--space-6);">
+      <div class="kv-item">
+        <div class="kv-label">Organization ID</div>
+        <div class="kv-value mono"><%= orgId %></div>
+      </div>
+      <div class="kv-item">
+        <div class="kv-label">Endpoint ID</div>
+        <div class="kv-value mono"><%= endpointId %></div>
+      </div>
+    </div>
+
+    <div class="flex gap-3" style="justify-content:center; flex-wrap:wrap;">
+      <a href="/submit-task" class="btn btn-primary"><i class="ph ph-paper-plane-tilt"></i> Submit a Task</a>
+      <a href="/" class="btn btn-ghost"><i class="ph ph-house"></i> Home</a>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,168 @@
+<%# Stamp FHIR base so reference links in JSON viewers resolve correctly %>
+<% if (related && related[0] && related[0].initial && related[0].initial.fhirServer) { %>
+  <%- include('partials/_fhir_base', { fhirBase: related[0].initial.fhirServer }) %>
+<% } %>
+
+<div class="page-header">
+  <h1 class="page-title"><i class="ph ph-graph" style="color:var(--color-primary)"></i> Submitted Tasks</h1>
+  <p class="page-subtitle">View submitted Tasks alongside their linked Authority Tasks.</p>
+</div>
+
+<% related.forEach((group, groupIdx) => { %>
+<div class="task-block">
+  <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:var(--space-3);">
+    <div>
+      <h3>Initial Task: <span class="text-mono" style="font-weight:400;"><%= group.initial.id %></span></h3>
+      <div class="kv-grid" style="margin-top:var(--space-3);">
+        <div class="kv-item">
+          <div class="kv-label">Identifier</div>
+          <div class="kv-value mono"><%= group.initial.identifier %></div>
+        </div>
+        <div class="kv-item">
+          <div class="kv-label">Status</div>
+          <div class="kv-value">
+            <%
+              const si = (group.initial.task.status || '').toLowerCase();
+              const ci = si === 'completed' ? 'badge-success' : si === 'in-progress' ? 'badge-warning' : si === 'failed' ? 'badge-danger' : 'badge-info';
+            %>
+            <span class="badge <%= ci %>"><%= group.initial.task.status %></span>
+          </div>
+        </div>
+        <div class="kv-item">
+          <div class="kv-label">Server</div>
+          <div class="kv-value" style="font-size:0.8rem; word-break:break-all;"><%= group.initial.fhirServer %></div>
+        </div>
+      </div>
+    </div>
+    <script>var _initTask_<%= groupIdx %> = <%- JSON.stringify(group.initial.task) %>;</script>
+    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:var(--space-2);">
+      <button class="action-btn btn-ghost" onclick="openJsonModal(
+          _initTask_<%= groupIdx %>,
+          'Task/<%= group.initial.id %>',
+          { fetchUrl: '<%= group.initial.fhirServer.replace(/\/+$/, "") %>/Task/<%= group.initial.id %>',
+            resourceType: 'Task' })">
+        <i class="ph ph-code"></i> View Task JSON
+      </button>
+      <% if (!['cancelled','completed'].includes((group.initial.task.status||'').toLowerCase())) { %>
+      <details>
+        <summary class="action-btn btn-ghost" style="cursor:pointer; color:var(--color-danger,#c0392b); list-style:none;">
+          <i class="ph ph-x-circle"></i> Withdraw Task
+        </summary>
+        <form method="POST" action="/initial-task/<%= group.initial.id %>/withdraw"
+              style="margin-top:var(--space-3); display:flex; flex-direction:column; gap:var(--space-2); min-width:280px;"
+              onsubmit="return confirm('Withdraw this task? Status will be set to cancelled.');">
+          <label style="font-size:0.85rem; font-weight:600;">
+            Withdrawal Reason
+            <span style="font-weight:400; color:var(--color-text-muted); font-size:0.78rem;">(Task.statusReason.concept.text)</span>
+            <textarea name="statusReason" rows="2" required
+                      placeholder="e.g. Submission withdrawn pending updated safety data..."
+                      style="margin-top:var(--space-1); width:100%;"></textarea>
+          </label>
+          <div>
+            <button type="submit" style="background:var(--color-danger,#c0392b); color:#fff; border:none; padding:var(--space-2) var(--space-4); border-radius:var(--radius-sm); cursor:pointer; font-size:0.85rem; font-weight:600;">
+              <i class="ph ph-x-circle"></i> Confirm Withdrawal
+            </button>
+          </div>
+        </form>
+      </details>
+      <% } %>
+    </div>
+  </div>
+
+  <%
+    /* ── Submitted Documents (Task.input with DocumentReference) ── */
+    const initInputs = (group.initial.task?.input || []).filter(i =>
+      i.valueReference?.reference?.startsWith('DocumentReference/')
+    );
+    const initFhirServer = group.initial.fhirServer || '';
+  %>
+  <% if (initInputs.length > 0) { %>
+  <div style="margin:var(--space-4) 0; padding:var(--space-4); background:var(--color-surface-alt); border:1px solid var(--color-border); border-radius:var(--radius-md);">
+    <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--color-primary); margin-bottom:var(--space-3);">
+      <i class="ph ph-paperclip"></i> Submitted Documents (<%= initInputs.length %>)
+    </div>
+    <% initInputs.forEach(inp => {
+      const drId = inp.valueReference.reference.replace('DocumentReference/', '');
+      const label = inp.type?.text || inp.type?.coding?.[0]?.display || inp.type?.coding?.[0]?.code || 'Document';
+    %>
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--space-2); padding:var(--space-2) 0; border-bottom:1px solid var(--color-border);">
+      <div>
+        <div style="font-size:0.82rem; font-weight:600; color:var(--color-text);"><%= label %></div>
+        <div style="font-family:var(--font-mono); font-size:0.75rem; color:var(--color-text-muted);">DocumentReference/<%= drId %></div>
+      </div>
+      <div style="display:flex; gap:var(--space-2);">
+        <a href="/documents/<%= drId %>/binary?fhirUrl=<%= encodeURIComponent(initFhirServer) %>"
+           target="_blank"
+           class="btn btn-primary btn-sm">
+          <i class="ph ph-file-pdf"></i> View PDF
+        </a>
+        <a href="/documents/<%= drId %>/binary?download=1&fhirUrl=<%= encodeURIComponent(initFhirServer) %>"
+           class="btn btn-ghost btn-sm">
+          <i class="ph ph-download-simple"></i> Download
+        </a>
+        <a href="/documents/<%= drId %>?fhirUrl=<%= encodeURIComponent(initFhirServer) %>"
+           class="btn btn-ghost btn-sm">
+          <i class="ph ph-info"></i> Metadata
+        </a>
+      </div>
+    </div>
+    <% }) %>
+  </div>
+  <% } %>
+
+  <h4><i class="ph ph-shield-check"></i> Linked Authority Tasks</h4>
+
+  <% if (group.authority.length === 0) { %>
+    <div class="alert alert-info" style="margin-bottom:0;">
+      <i class="ph ph-info"></i>
+      No authority tasks linked to this Task yet.
+    </div>
+  <% } else { %>
+    <div class="table-wrapper">
+      <table class="related-table">
+        <thead>
+          <tr>
+            <th>Authority Task ID</th>
+            <th>Status</th>
+            <th>Relationship</th>
+            <th>Server</th>
+            <th>Inspect</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% group.authority.forEach((a, aIdx) => { %>
+            <tr>
+              <td class="text-mono" style="font-size:0.8rem;"><%= a.id %></td>
+              <td>
+                <%
+                  const sa = (a.task.status || '').toLowerCase();
+                  const ca = sa === 'completed' ? 'badge-success' : sa === 'in-progress' || sa === 'accepted' ? 'badge-warning' : sa === 'failed' ? 'badge-danger' : 'badge-info';
+                %>
+                <span class="badge <%= ca %>"><%= a.task.status %></span>
+              </td>
+              <td style="font-size:0.82rem; color:var(--color-text-muted);">
+                <span class="text-mono" style="font-size:0.75rem;"><%= a.initiatorTaskId %></span>
+                <i class="ph ph-arrow-right" style="margin:0 4px; font-size:0.75rem;"></i>
+                <span class="text-mono" style="font-size:0.75rem;"><%= a.id %></span>
+              </td>
+              <td style="font-size:0.8rem; color:var(--color-text-muted); max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="<%= a.fhirServer %>">
+                <%= a.fhirServer %>
+              </td>
+              <td>
+                <script>var _authTask_<%= groupIdx %>_<%= aIdx %> = <%- JSON.stringify(a.task) %>;</script>
+                <button class="action-btn btn-ghost" onclick="openJsonModal(
+                    _authTask_<%= groupIdx %>_<%= aIdx %>,
+                    'Task/<%= a.id %>',
+                    { fetchUrl: '<%= a.fhirServer.replace(/\/+$/, "") %>/Task/<%= a.id %>',
+                      resourceType: 'Task' })">
+                  <i class="ph ph-code"></i> View JSON
+                </button>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+<% }) %>

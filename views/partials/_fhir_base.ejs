@@ -1,0 +1,28 @@
+<!--
+  _fhir_base.ejs — include this partial on any page that shows FHIR JSON
+  with relative references (e.g. "Task/123") so fhir-references.js can
+  build the correct fetch URL.
+
+  Usage in any EJS template:
+    <%%- include('partials/_fhir_base', { fhirBase: fhirUrl }) %>
+  or
+    <%%- include('partials/_fhir_base', { fhirBase: task.fhirServer }) %>
+-->
+<% if (typeof fhirBase !== 'undefined' && fhirBase) { %>
+<meta name="fhir-base" content="<%= fhirBase %>">
+<script>
+  // Make the FHIR base URL available to fhir-references.js immediately.
+  // The resolver also reads this from the DOM as a fallback.
+  window.__FHIR_BASE__ = "<%= fhirBase %>";
+
+  // Stamp all json-viewer-containers on this page with data-fhir-base
+  // so the resolver can find it via closest('[data-fhir-base]').
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.json-viewer-container, .fhir-card, .card').forEach(function (el) {
+      if (!el.dataset.fhirBase) el.dataset.fhirBase = "<%= fhirBase %>";
+    });
+    // Also re-instrument now that base is known
+    if (window.FhirRefResolver) window.FhirRefResolver.instrument();
+  });
+</script>
+<% } %>

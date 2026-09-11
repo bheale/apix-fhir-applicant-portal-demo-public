@@ -1,0 +1,278 @@
+<div class="page-header">
+  <h1 class="page-title">
+    <i class="ph ph-file-pdf" style="color:var(--color-primary)"></i>
+    DocumentReference
+    <span style="font-family:var(--font-mono); font-weight:400; font-size:1rem; margin-left:8px;"><%= docRef.id %></span>
+  </h1>
+  <p class="page-subtitle">
+    Regulatory document metadata and linked Tasks.
+    The PDF is <strong>not loaded</strong> until you click "View PDF" or "Download PDF".
+  </p>
+</div>
+
+<%- include('partials/_fhir_base', { fhirBase: fhirBase }) %>
+
+<!-- ── Status + Actions ───────────────────────────────────────── -->
+<div style="display:flex; align-items:center; gap:var(--space-3); flex-wrap:wrap; margin-bottom:var(--space-5);">
+  <%
+    const drStatus = docRef.status || 'unknown';
+    const statusCls = drStatus === 'current' ? 'badge-success' :
+                      drStatus === 'superseded' ? 'badge-warning' :
+                      drStatus === 'entered-in-error' ? 'badge-danger' : 'badge-neutral';
+  %>
+  <span class="badge <%= statusCls %>"><%= drStatus %></span>
+
+  <% if (binaryId) { %>
+    <a href="/documents/<%= docRef.id %>/binary"
+       target="_blank"
+       class="btn btn-primary btn-sm">
+      <i class="ph ph-file-pdf"></i> View PDF
+    </a>
+    <a href="/documents/<%= docRef.id %>/binary?download=1"
+       class="btn btn-ghost btn-sm">
+      <i class="ph ph-download-simple"></i> Download PDF
+    </a>
+  <% } else { %>
+    <span class="badge badge-neutral"><i class="ph ph-warning"></i> No Binary attachment</span>
+  <% } %>
+
+  <button class="btn btn-ghost btn-sm"
+      onclick="openJsonModal(<%= JSON.stringify(docRef).replace(/'/g,'&#39;') %>,
+        'DocumentReference/<%= docRef.id %>',
+        { fetchUrl: '<%= fhirBase %>/DocumentReference/<%= docRef.id %>',
+          resourceType: 'DocumentReference' })">
+    <i class="ph ph-code"></i> View JSON
+  </button>
+</div>
+
+<!-- ── Metadata card ─────────────────────────────────────────── -->
+<div class="card" style="margin-bottom:var(--space-5);">
+  <div class="card-header">
+    <div class="card-title"><i class="ph ph-info"></i> Document Metadata</div>
+  </div>
+
+  <div class="kv-grid">
+    <div class="kv-item">
+      <div class="kv-label">Type</div>
+      <div class="kv-value">
+        <%= docRef.type?.coding?.[0]?.display || docRef.type?.text || '—' %>
+        <% if (docRef.type?.coding?.[0]?.code) { %>
+          <span class="text-mono" style="font-size:0.75rem; color:var(--color-text-muted);">
+            (<%= docRef.type.coding[0].code %>)
+          </span>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="kv-item">
+      <div class="kv-label">Category</div>
+      <div class="kv-value">
+        <%= docRef.category?.[0]?.coding?.[0]?.display || docRef.category?.[0]?.text || '—' %>
+      </div>
+    </div>
+
+    <div class="kv-item">
+      <div class="kv-label">Status</div>
+      <div class="kv-value">
+        <span class="badge <%= statusCls %>"><%= drStatus %></span>
+      </div>
+    </div>
+
+    <div class="kv-item">
+      <div class="kv-label">Date</div>
+      <div class="kv-value mono">
+        <%= docRef.date ? new Date(docRef.date).toLocaleString() : '—' %>
+      </div>
+    </div>
+
+    <div class="kv-item">
+      <div class="kv-label">Subject</div>
+      <div class="kv-value">
+        <%= docRef.subject?.display || docRef.subject?.reference || '—' %>
+      </div>
+    </div>
+
+    <div class="kv-item">
+      <div class="kv-label">Author</div>
+      <div class="kv-value">
+        <% if (docRef.author && docRef.author.length > 0) { %>
+          <%= docRef.author.map(a => a.display || a.reference).join(', ') %>
+        <% } else { %>
+          —
+        <% } %>
+      </div>
+    </div>
+
+    <div class="kv-item" style="grid-column:1/-1;">
+      <div class="kv-label">Description</div>
+      <div class="kv-value"><%= docRef.description || '—' %></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Attachment metadata ────────────────────────────────────── -->
+<% const attachment = docRef.content?.[0]?.attachment; %>
+<% if (attachment) { %>
+<div class="card" style="margin-bottom:var(--space-5);">
+  <div class="card-header">
+    <div class="card-title"><i class="ph ph-paperclip"></i> Attachment Metadata</div>
+    <span class="badge badge-neutral" style="font-size:0.72rem;">Binary not fetched</span>
+  </div>
+
+  <div class="kv-grid">
+    <div class="kv-item">
+      <div class="kv-label">Title</div>
+      <div class="kv-value"><%= attachment.title || '—' %></div>
+    </div>
+
+    <div class="kv-item">
+      <div class="kv-label">Content Type</div>
+      <div class="kv-value mono"><%= attachment.contentType || '—' %></div>
+    </div>
+
+    <div class="kv-item">
+      <div class="kv-label">Created</div>
+      <div class="kv-value mono">
+        <%= attachment.creation ? new Date(attachment.creation).toLocaleString() : '—' %>
+      </div>
+    </div>
+
+    <div class="kv-item">
+      <div class="kv-label">Size</div>
+      <div class="kv-value">
+        <% if (attachment.size) { %>
+          <%= (attachment.size / 1024).toFixed(1) %> KB
+          <span style="color:var(--color-text-muted); font-size:0.78rem;">(<%= attachment.size %> bytes)</span>
+        <% } else { %>
+          —
+        <% } %>
+      </div>
+    </div>
+
+    <div class="kv-item">
+      <div class="kv-label">Hash (SHA-256)</div>
+      <div class="kv-value mono" style="font-size:0.78rem; word-break:break-all;">
+        <%= attachment.hash || '—' %>
+      </div>
+    </div>
+
+    <div class="kv-item">
+      <div class="kv-label">Language</div>
+      <div class="kv-value"><%= attachment.language || '—' %></div>
+    </div>
+
+    <div class="kv-item" style="grid-column:1/-1;">
+      <div class="kv-label">Binary URL (raw)</div>
+      <div class="kv-value mono" style="font-size:0.8rem; word-break:break-all;">
+        <%= attachment.url || '—' %>
+        <% if (binaryId) { %>
+          <span style="color:var(--color-text-muted); font-size:0.75rem; margin-left:8px;">
+            → resolved as Binary/<%= binaryId %>
+          </span>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <% if (binaryId) { %>
+  <div class="alert alert-info" style="margin-top:var(--space-4); margin-bottom:0;">
+    <i class="ph ph-info"></i>
+    <div>
+      The PDF is <strong>not embedded</strong> on this page.
+      Click <strong>View PDF</strong> to open it in a new tab, or
+      <strong>Download PDF</strong> to save it — the Binary is only fetched when you do.
+    </div>
+  </div>
+  <% } %>
+</div>
+<% } %>
+
+<!-- ── Linked Tasks ───────────────────────────────────────────── -->
+<div class="card" style="margin-bottom:var(--space-5);">
+  <div class="card-header">
+    <div class="card-title">
+      <i class="ph ph-graph"></i> Linked Tasks
+    </div>
+    <span class="badge badge-primary"><%= linkedTasks.length %></span>
+  </div>
+
+  <% if (linkedTasks.length === 0) { %>
+    <div class="alert alert-info" style="margin:0;">
+      <i class="ph ph-info"></i>
+      No Tasks in memory reference this DocumentReference.
+      Tasks are tracked only after they are submitted or received via subscription.
+    </div>
+  <% } else { %>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Task ID</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Code</th>
+          <th>Via</th>
+          <th>JSON</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% linkedTasks.forEach(lt => {
+          const s = (lt.task.status || '').toLowerCase();
+          const sCls = s === 'completed' ? 'badge-success' :
+                       s === 'in-progress' || s === 'accepted' ? 'badge-warning' :
+                       s === 'failed' || s === 'rejected' ? 'badge-danger' :
+                       s === 'requested' ? 'badge-info' : 'badge-neutral';
+        %>
+        <tr>
+          <td class="text-mono" style="font-size:0.8rem;"><%= lt.task.id %></td>
+          <td>
+            <span class="badge <%= lt.via === 'input' ? 'badge-info' : 'badge-accent' %>">
+              <%= lt.via %>
+            </span>
+          </td>
+          <td><span class="badge <%= sCls %>"><%= lt.task.status || '—' %></span></td>
+          <td style="font-size:0.82rem;">
+            <%= lt.task.code?.coding?.[0]?.display || lt.task.code?.text || '—' %>
+          </td>
+          <td style="font-size:0.78rem; color:var(--color-text-muted);">
+            <%= lt.store %>
+          </td>
+          <td>
+            <button class="action-btn btn-ghost"
+                onclick="openJsonModal(linkedTasks[<%= linkedTasks.indexOf(lt) %>],
+                  'Task/<%= lt.task.id %>',
+                  { fetchUrl: '<%= fhirBase %>/Task/<%= lt.task.id %>',
+                    resourceType: 'Task' })">
+              <i class="ph ph-code"></i>
+            </button>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</div>
+
+<!-- ── Lookup by ID ───────────────────────────────────────────── -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title"><i class="ph ph-magnifying-glass"></i> Look Up Another Document</div>
+  </div>
+  <form method="GET" action="" id="docLookupForm"
+        onsubmit="this.action='/documents/' + document.getElementById('lookupId').value; return true;"
+        style="display:flex; gap:var(--space-3); align-items:flex-end; flex-wrap:wrap;">
+    <label style="flex:1; min-width:200px;">
+      DocumentReference ID
+      <input id="lookupId" type="text" placeholder="e.g. 1234" required>
+    </label>
+    <div>
+      <button type="submit"><i class="ph ph-arrow-right"></i> View</button>
+    </div>
+  </form>
+</div>
+
+<!-- Inject linkedTasks data for onclick handlers -->
+<script>
+  var linkedTasks = <%- JSON.stringify(linkedTasks.map(lt => lt.task)) %>;
+</script>

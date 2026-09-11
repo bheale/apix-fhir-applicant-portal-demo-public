@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FHIR Applicant's Portal · <%= typeof pageTitle !== 'undefined' ? pageTitle : 'FHIR Demo App' %></title>
+
+  <!-- Google Fonts: DM Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web@2.0.3/src/index.js" defer></script>
+
+  <!-- highlight.js — APIX IG style code highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" defer></script>
+
+  <!-- App CSS -->
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- ─── Top Navigation Bar ─────────────────────────────────── -->
+  <header class="topbar">
+    <a href="/" class="topbar-brand">
+      <div class="topbar-brand-icon">
+        <i class="ph ph-heartbeat"></i>
+      </div>
+      <div>
+        <div class="topbar-brand-name">FHIR Applicant's Portal</div>
+        <div class="topbar-brand-sub">Applicant Submission Platform</div>
+      </div>
+    </a>
+
+    <nav class="topbar-nav">
+      <a href="/" title="Home">
+        <i class="ph ph-house"></i> Home
+      </a>
+      <a href="/register" title="Register Organization">
+        <i class="ph ph-buildings"></i> Register Org
+      </a>
+      <a href="/submit-task" title="Submit Task">
+        <i class="ph ph-paper-plane-tilt"></i> Submit Task
+      </a>
+      <a href="/related-tasks" title="Submitted Tasks">
+        <i class="ph ph-graph"></i> Submitted Tasks
+      </a>
+      <a href="/subscriptions" title="Subscriptions Dashboard">
+        <i class="ph ph-bell-ringing"></i> Subscriptions
+      </a>
+      <a href="/authority-tasks" title="Authority Tasks">
+        <i class="ph ph-shield-check"></i> Authority Tasks
+      </a>
+      <a href="/documents" title="Document Viewer" id="docViewerNavLink">
+        <i class="ph ph-files"></i> Documents
+      </a>
+      <%# Demo Tasks button hidden — remove comment to restore
+      <a href="/demo/generate" title="Generate APIX Demo Tasks" style="border:1px dashed rgba(255,255,255,0.35); margin-left:auto;">
+        <i class="ph ph-flask"></i> Demo Tasks
+      </a>
+      %>
+      <a href="/submitter/annual-report" title="Submitter Annual Report" style="border:1px solid rgba(255,255,255,0.3);">
+        <i class="ph ph-chart-line-up"></i> Annual Report
+      </a>
+      <a href="/settings" title="FHIR Authentication Settings">
+        <i class="ph ph-gear"></i> Settings
+      </a>
+      <form method="POST" action="/reset" style="margin-left:var(--space-2);"
+            onsubmit="return confirm('Reset the app? This clears all organizations, tasks, subscriptions, and notifications from memory. This cannot be undone.');">
+        <button type="submit" class="topbar-reset-btn" title="Reset app to initial state">
+          <i class="ph ph-arrow-counter-clockwise"></i> Reset
+        </button>
+      </form>
+    </nav>
+  </header>
+
+  <!-- ─── Main Content ───────────────────────────────────────── -->
+  <main class="main-content">
+    <%- body %>
+  </main>
+
+  <!-- ─── Footer ─────────────────────────────────────────────── -->
+  <footer class="app-footer">
+    <span><i class="ph ph-heartbeat" style="color:var(--color-primary)"></i> FHIR Applicant's Portal · Applicant Submission Platform</span>
+    <span style="color:var(--color-text-light); font-family:var(--font-mono); font-size:0.75rem;">FHIR R5 · HL7</span>
+  </footer>
+
+</div>
+
+<!-- ─── Global JSON Modal ──────────────────────────────────────── -->
+<div id="jsonModalOverlay" class="json-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="jsonModalTitle">
+  <div class="json-modal">
+    <div class="json-modal-header">
+      <div class="json-modal-title">
+        <i class="ph ph-code"></i>
+        <span id="jsonModalTitle">FHIR Resource JSON</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:var(--space-2);">
+        <button id="jsonModalRefreshBtn" title="Fetch latest version from FHIR server">
+          <i class="ph ph-arrow-clockwise"></i> Refresh
+        </button>
+        <button class="json-modal-close" onclick="closeJsonModal()" title="Close">&times;</button>
+      </div>
+    </div>
+    <div class="json-modal-body" id="jsonModalContent">
+    </div>
+  </div>
+</div>
+
+
+<!-- ─── App JS ────────────────────────────────────────────────── -->
+<script src="/app.js"></script>
+<!-- ─── FHIR Reference Resolver ───────────────────────────────── -->
+<script src="/fhir-references.js"></script>
+<script>
+// Wire up the Documents nav link to open a prompt for DocumentReference ID
+// only if the user hasn't navigated here from a direct link.
+(function () {
+  var navLink = document.getElementById('docViewerNavLink');
+  if (!navLink) return;
+  navLink.addEventListener('click', function (e) {
+    // If already on a /documents/ page, do nothing special
+    if (window.location.pathname.startsWith('/documents/')) return;
+    e.preventDefault();
+    var id = prompt('Enter DocumentReference ID to view:');
+    if (!id || !id.trim()) return;
+    // Try to get fhirUrl from the page meta tag if available
+    var meta = document.querySelector('meta[name="fhir-base"]');
+    var fhirUrl = meta ? meta.content : '';
+    var url = '/documents/' + encodeURIComponent(id.trim());
+    if (fhirUrl) url += '?fhirUrl=' + encodeURIComponent(fhirUrl);
+    window.location.href = url;
+  });
+})();
+</script>
+</body>
+</html>
